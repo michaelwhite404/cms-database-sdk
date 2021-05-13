@@ -1,0 +1,32 @@
+{
+  "name": "cms-database-sdk",
+  "version": "1.0.0",
+  "description": "An SDK for the CMS Database",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/michaelwhite404/cms-database-sdk.git"
+  },
+  "keywords": [
+    "cms",
+    "sdk"
+  ],
+  "author": "Michael White",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/michaelwhite404/cms-database-sdk/issues"
+  },
+  "homepage": "https://github.com/michaelwhite404/cms-database-sdk#readme",
+  "devDependencies": {
+    "@types/qs": "^6.9.6",
+    "typescript": "^4.2.4"
+  },
+  "dependencies": {
+    "axios": "^0.21.1",
+    "es6-error": "^4.1.1",
+    "qs": "^6.10.1"
+  }
+}

@@ -1,4 +1,4 @@
-import axios, { AxiosPromise, AxiosRequestConfig, Method } from "axios";
+import axios, { AxiosError, AxiosPromise, AxiosRequestConfig, Method } from "axios";
 import CMSError, { buildRequiredArgError } from "./CMSError";
 // import qs from "qs";
 
@@ -46,20 +46,40 @@ interface DatabaseId {
   database_id: string;
 }
 
+interface Database {
+  /** The database _id */
+  _id: string;
+  /** The name of the database */
+  name: string;
+  /** The user that created the database */
+  createdBy: string;
+  /** Unique slug identifier for the database */
+  slug: string;
+  /** The timezone of the client of the database creator */
+  timezone: string;
+  /** The date the database was created */
+  createdAt: Date;
+}
+
+interface APIDatabaseRepsonse {
+  status: "success";
+  database: Database;
+}
+
 class MyCMS {
   private endpoint: string;
   token: string;
   version: string;
   private headers: Headers;
-  private authenticatedFetch: (
+  private authenticatedFetch: <T = any>(
     method: Method,
     path: string,
     data: any,
     query?: {}
-  ) => AxiosPromise<any>;
+  ) => AxiosPromise<T>;
 
   constructor({ token, version = "1.0.0" }: CMSConstruct = {}) {
-    if (!token) throw "no token";
+    if (!token) throw buildRequiredArgError("token");
 
     this.endpoint = DEFAULT_ENDPOINT;
     this.token = token;
@@ -72,7 +92,7 @@ class MyCMS {
       "Content-Type": "application/json",
     };
 
-    this.authenticatedFetch = (method: Method, path: string, data, query = {}) => {
+    this.authenticatedFetch = <T>(method: Method, path: string, data: any, query = {}) => {
       // const queryString = query && Object.keys(query).length === 0 ? `?${qs.stringify(query)}` : "";
 
       // const url = `${this.endpoint}${path}${queryString}`;
@@ -88,14 +108,14 @@ class MyCMS {
       //   .then((res) => console.log(res.data))
       //   .catch((err) => console.log(err.response.data));
 
-      return axios(config);
+      return axios(config) as AxiosPromise<T>;
     };
   }
 
   // Generic HTTP request handlers
 
-  private get(path: string, query = {}) {
-    return this.authenticatedFetch("GET", path, false, query);
+  private get<T>(path: string, query = {}) {
+    return this.authenticatedFetch<T>("GET", path, false, query);
   }
 
   private post(path: string, data: any, query = {}) {
@@ -127,14 +147,17 @@ class MyCMS {
     return res.data;
   }
 
-  /** Retrieves database by database ID  */
-  async getDatabase({ database_id }: { database_id: string }) {
+  /**
+   * Retrieves database by database ID. Returns null if no database is found
+   * @param database_id The unique ID of the database
+   */
+  async getDatabaseById(database_id: string) {
     if (!database_id) return Promise.reject(buildRequiredArgError("database_id"));
     try {
-      const res = await this.get(`/databases/${database_id}`);
-      return res.data;
+      const res = await this.get<APIDatabaseRepsonse>(`/databases/${database_id}`);
+      return res.data.database;
     } catch (err) {
-      return err.response.data;
+      return null;
     }
   }
 
@@ -145,7 +168,7 @@ class MyCMS {
       const res = await this.post("/databases", { name });
       return res.data;
     } catch (err) {
-      return err.response.data;
+      return (err as AxiosError<CMSError>).response!.data;
     }
   }
 
@@ -156,7 +179,7 @@ class MyCMS {
       const res = await this.delete(`/databases/${database_id}`);
       return res.data;
     } catch (err) {
-      return err.response.data;
+      return (err as AxiosError<CMSError>).response!.data;
     }
   }
 
@@ -169,7 +192,7 @@ class MyCMS {
       const res = await this.post(`/databases/${database_id}/share`, { email, role });
       return res.data;
     } catch (err) {
-      return err.response.data;
+      return (err as AxiosError<CMSError>).response!.data;
     }
   }
 
@@ -181,7 +204,7 @@ class MyCMS {
       const res = await this.patch(`/databases/${database_id}`, { database_id, name });
       return res.data;
     } catch (err) {
-      return err.response.data;
+      return (err as AxiosError<CMSError>).response!.data;
     }
   }
 }
@@ -203,11 +226,11 @@ export default function init(initilizer: CMSConstruct = {}) {
 const myCMS = init({ token });
 // const databases = myCMS.getDatabases({ limit: 2, page: 2 });
 // databases.then((d) => console.log(d));
-// const database = myCMS.getDatabase({ database_id: "60837f1c774a7f66e03f4f27" });
+// const database = myCMS.getDatabaseById("60837f1c774a7f66e03f4f27");
 // database.then((d) => console.log(d)).catch((err) => console.log(new CMSError(err)));
 // const database = myCMS.createDatabase({ name: "Another Database" });
 // database.then((d) => console.log(d)).catch((err) => console.log(new CMSError(err)));
-// const database = myCMS.deleteDatabase({ database_id: "609dc5a6de3ee95b102d0c15" });
+// const database = myCMS.deleteDatabase({ database_id: "609f1e7ade3ee95b102d0c19" });
 // database.then((d) => console.log(d)).catch((err) => console.log(new CMSError(err)));
 // const database = myCMS.shareDatabase({
 //   database_id: "609dd26ede3ee95b102d0c16",
@@ -216,7 +239,15 @@ const myCMS = init({ token });
 // });
 // database.then((d) => console.log(d)).catch((err) => console.log(new CMSError(err)));
 // const database = myCMS.updateDatabase({
-//   database_id: "609dd26ede3ee95b102d0c16",
+//   database_id: "609f1e7ade3ee95b102d0c19",
 //   name: "Another Edited Database",
 // });
 // database.then((d) => console.log(d)).catch((err) => console.log(new CMSError(err)));
+
+const getDatabase = async (id: string) => {
+  const database = await myCMS.getDatabaseById(id);
+  if (!database) return "No Database";
+
+  return database;
+};
+getDatabase("60837f1c774a7f66e03f4f27").then((d) => console.log(d));

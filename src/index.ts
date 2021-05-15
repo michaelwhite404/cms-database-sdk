@@ -23,6 +23,7 @@ interface CMSConstruct {
   version?: string;
 }
 
+type FinalQuery = Omit<QueryFeatures<any>, "fields"> & { fields?: string };
 interface QueryFeatures<T> {
   /**
    * @param page The paginated page of the results
@@ -34,7 +35,11 @@ interface QueryFeatures<T> {
    * @default 100
    */
   limit?: number;
+  /**
+   * @param sort The field(s) that set the sort order of the results
+   */
   sort?: string;
+  /** @param fields An array of fields each result will limit itself to  */
   fields?: Array<keyof T>;
 }
 
@@ -176,6 +181,17 @@ class MyCMS {
     return this.authenticatedFetch<T>("DELETE", path, query);
   }
 
+  // Util Methods
+
+  private createFinalQuery(query: QueryFeatures<any>): FinalQuery {
+    let { fields, ...rest } = query;
+    const finalQuery = rest as FinalQuery;
+    if (fields && Array.isArray(fields)) {
+      finalQuery.fields = fields.join(",");
+    }
+    return finalQuery;
+  }
+
   // Databases
 
   /**
@@ -183,7 +199,8 @@ class MyCMS {
    * @param query The query that will be added to the request
    * */
   async getDatabases(query: QueryFeatures<Database> = {}) {
-    const res = await this.get<APIDatabasesRepsonse>("/databases", query);
+    const finalQuery = this.createFinalQuery(query);
+    const res = await this.get<APIDatabasesRepsonse>("/databases", finalQuery);
     return res.data.databases;
   }
 
@@ -310,8 +327,8 @@ export default function init(initilizer: CMSConstruct = {}) {
 }
 // Tests
 const myCMS = init({ token });
-// const databases = myCMS.getDatabases({ page: 2, limit: 2, fields: ["name", "slug"] });
-// databases.then((d) => console.log(d));
+const databases = myCMS.getDatabases({ page: 2, limit: 2, fields: ["name", "slug"] });
+databases.then((d) => console.log(d));
 // const database = myCMS.getDatabaseById("60837f1c774a7f66e03f4f27");
 // database.then((d) => console.log(d)).catch((err) => console.log(err));
 // const database = myCMS.createDatabase("Another One");
@@ -331,4 +348,4 @@ const myCMS = init({ token });
 // };
 // getDatabase("60837f1c774a7f66e03f4f27").then((d) => console.log(d));
 
-myCMS.getCollectionsByDatabaseId("60837f1c774a7f66e03f4f27").then((c) => console.log(c));
+// myCMS.getCollectionsByDatabaseId("60837f1c774a7f66e03f4f27").then((c) => console.log(c));

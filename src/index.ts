@@ -113,6 +113,11 @@ interface APICollectionsResponse extends MultipleResultsReponse {
   collections: BasicCollectionInfo[];
 }
 
+interface APICollectionResponse {
+  status: "success";
+  collection: Collection;
+}
+
 class MyCMS {
   private endpoint: string;
   token: string;
@@ -305,10 +310,28 @@ class MyCMS {
 
   // Collections
 
-  /** Gets all collections in a database by database ID */
+  /**
+   * Gets all collections in a database by database ID
+   * @param database_id The unique database ID
+   */
   async getCollectionsByDatabaseId(database_id: string) {
+    if (!database_id) return Promise.reject(buildRequiredArgError("database_id"));
     const res = await this.get<APICollectionsResponse>(`/databases/${database_id}/collections`);
     return res.data.collections;
+  }
+
+  /**
+   * Retrieves collection by collection ID. Returns null if no collection is found
+   * @param collection_id The unique ID of the collection
+   */
+  async getCollectionById(collection_id: string) {
+    if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
+    try {
+      const res = await this.get<APICollectionResponse>(`/collections/${collection_id}`);
+      return res.data.collection;
+    } catch (err) {
+      return null;
+    }
   }
 }
 const token =
@@ -327,8 +350,8 @@ export default function init(initilizer: CMSConstruct = {}) {
 }
 // Tests
 const myCMS = init({ token });
-const databases = myCMS.getDatabases({ page: 2, limit: 2, fields: ["name", "slug"] });
-databases.then((d) => console.log(d));
+// const databases = myCMS.getDatabases({ page: 2, limit: 2, fields: ["name", "slug"] });
+// databases.then((d) => console.log(d));
 // const database = myCMS.getDatabaseById("60837f1c774a7f66e03f4f27");
 // database.then((d) => console.log(d)).catch((err) => console.log(err));
 // const database = myCMS.createDatabase("Another One");
@@ -349,3 +372,5 @@ databases.then((d) => console.log(d));
 // getDatabase("60837f1c774a7f66e03f4f27").then((d) => console.log(d));
 
 // myCMS.getCollectionsByDatabaseId("60837f1c774a7f66e03f4f27").then((c) => console.log(c));
+const collection = myCMS.getCollectionById("6085e2db94ab6759c471f801");
+collection.then((c) => console.log(c));

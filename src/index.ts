@@ -1,6 +1,7 @@
 import axios, { AxiosError, AxiosPromise, AxiosRequestConfig, Method } from "axios";
+
 import CMSError, { buildRequiredArgError } from "./CMSError";
-// import qs from "qs";
+import Collection from "./interfaces/collectionInterfaces";
 
 const DEFAULT_ENDPOINT = "http://localhost:5000/api/v1";
 
@@ -22,7 +23,7 @@ interface CMSConstruct {
   version?: string;
 }
 
-interface DatabasesQuery {
+interface QueryFeatures<T> {
   /**
    * @param page The paginated page of the results
    * @default 1
@@ -33,6 +34,8 @@ interface DatabasesQuery {
    * @default 100
    */
   limit?: number;
+  sort?: string;
+  fields?: Array<keyof T>;
 }
 
 type DatabaseShareRoles = "editor" | "viewer";
@@ -52,7 +55,13 @@ interface Database {
   createdAt: Date;
 }
 
-interface APIDatabasesRepsonse {
+interface MultipleResultsReponse {
+  results: number;
+  page: number;
+  limit: number;
+}
+
+interface APIDatabasesRepsonse extends MultipleResultsReponse {
   status: "success";
   databases: Database[];
 }
@@ -87,6 +96,17 @@ interface ShareFailed {
 }
 
 type ShareResult = SharePassed | ShareFailed;
+
+type BasicCollectionInfo = Pick<
+  Collection,
+  "_id" | "name" | "slug" | "createdAt" | "lastUpdated" | "singularName"
+>;
+
+interface APICollectionsResponse extends MultipleResultsReponse {
+  status: "success";
+  database: string;
+  collections: BasicCollectionInfo[];
+}
 
 class MyCMS {
   private endpoint: string;
@@ -136,23 +156,23 @@ class MyCMS {
 
   // Generic HTTP request handlers
 
-  private get<T>(path: string, query = {}) {
+  private get<T = any>(path: string, query = {}) {
     return this.authenticatedFetch<T>("GET", path, false, query);
   }
 
-  private post<T>(path: string, data: any, query = {}) {
+  private post<T = any>(path: string, data: any, query = {}) {
     return this.authenticatedFetch<T>("POST", path, data, query);
   }
 
-  private put<T>(path: string, data: any, query = {}) {
+  private put<T = any>(path: string, data: any, query = {}) {
     return this.authenticatedFetch<T>("PUT", path, data, query);
   }
 
-  private patch<T>(path: string, data: any, query = {}) {
+  private patch<T = any>(path: string, data: any, query = {}) {
     return this.authenticatedFetch<T>("PATCH", path, data, query);
   }
 
-  private delete<T>(path: string, query = {}) {
+  private delete<T = any>(path: string, query = {}) {
     return this.authenticatedFetch<T>("DELETE", path, query);
   }
 
@@ -162,7 +182,7 @@ class MyCMS {
    * Gets all the databases the user has access to
    * @param query The query that will be added to the request
    * */
-  async getDatabases(query: DatabasesQuery = {}) {
+  async getDatabases(query: QueryFeatures<Database> = {}) {
     const res = await this.get<APIDatabasesRepsonse>("/databases", query);
     return res.data.databases;
   }
@@ -265,6 +285,14 @@ class MyCMS {
       });
     }
   }
+
+  // Collections
+
+  /** Gets all collections in a database by database ID */
+  async getCollectionsByDatabaseId(database_id: string) {
+    const res = await this.get<APICollectionsResponse>(`/databases/${database_id}/collections`);
+    return res.data.collections;
+  }
 }
 const token =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjYwODI1ZDhhNmEyMzQwNjlkY2RjMWFiYyIsImlhdCI6MTYyMDE0MzQ2NywiZXhwIjoxNjUxNjc5NDY3fQ.ezSf7wahKljsf-S411fZ7K0ZnIKXccvs4ELYzMK_tq8";
@@ -282,7 +310,7 @@ export default function init(initilizer: CMSConstruct = {}) {
 }
 // Tests
 const myCMS = init({ token });
-// const databases = myCMS.getDatabases({ limit: 2, page: 2 });
+// const databases = myCMS.getDatabases({ page: 2, limit: 2, fields: ["name", "slug"] });
 // databases.then((d) => console.log(d));
 // const database = myCMS.getDatabaseById("60837f1c774a7f66e03f4f27");
 // database.then((d) => console.log(d)).catch((err) => console.log(err));
@@ -302,3 +330,5 @@ const myCMS = init({ token });
 //   return database;
 // };
 // getDatabase("60837f1c774a7f66e03f4f27").then((d) => console.log(d));
+
+myCMS.getCollectionsByDatabaseId("60837f1c774a7f66e03f4f27").then((c) => console.log(c));

@@ -5,4 +5,6 @@ const token =
 
 const api = init({ token });
 
-api.getDatabaseById("60837f1c774a7f66e03f4f27").then((d) => console.log(d));
+// api.getDatabaseById("60837f1c774a7f66e03f4f27").then((d) => console.log(d));
+
+// api.createDatabase({ name: "YOU" }).catch((err) => console.log(err));

@@ -35,16 +35,7 @@ interface DatabasesQuery {
   limit?: number;
 }
 
-type DatabaseRole = "owner" | "editor" | "viewer";
-
-interface DatabaseShareParams extends DatabaseId {
-  email: string;
-  role: DatabaseRole;
-}
-
-interface DatabaseId {
-  database_id: string;
-}
+type DatabaseShareRoles = "editor" | "viewer";
 
 interface Database {
   /** The database _id */
@@ -61,10 +52,41 @@ interface Database {
   createdAt: Date;
 }
 
+interface APIDatabasesRepsonse {
+  status: "success";
+  databases: Database[];
+}
+
 interface APIDatabaseRepsonse {
   status: "success";
   database: Database;
 }
+
+interface APIDeletedDatabaseResponse {
+  status: "success";
+  databasesDeleted: number;
+  collectionsDeleted: number;
+  itemDeleted: number;
+}
+
+type DeletedDatabaseResponse = Omit<APIDeletedDatabaseResponse, "status">;
+
+interface APIGenericResponse {
+  status: "success";
+  message: "string";
+}
+
+interface SharePassed {
+  shared: true;
+  message: string;
+}
+
+interface ShareFailed {
+  shared: false;
+  message: string;
+}
+
+type ShareResult = SharePassed | ShareFailed;
 
 class MyCMS {
   private endpoint: string;
@@ -118,20 +140,20 @@ class MyCMS {
     return this.authenticatedFetch<T>("GET", path, false, query);
   }
 
-  private post(path: string, data: any, query = {}) {
-    return this.authenticatedFetch("POST", path, data, query);
+  private post<T>(path: string, data: any, query = {}) {
+    return this.authenticatedFetch<T>("POST", path, data, query);
   }
 
-  private put(path: string, data: any, query = {}) {
-    return this.authenticatedFetch("PUT", path, data, query);
+  private put<T>(path: string, data: any, query = {}) {
+    return this.authenticatedFetch<T>("PUT", path, data, query);
   }
 
-  private patch(path: string, data: any, query = {}) {
-    return this.authenticatedFetch("PATCH", path, data, query);
+  private patch<T>(path: string, data: any, query = {}) {
+    return this.authenticatedFetch<T>("PATCH", path, data, query);
   }
 
-  private delete(path: string, query = {}) {
-    return this.authenticatedFetch("DELETE", path, query);
+  private delete<T>(path: string, query = {}) {
+    return this.authenticatedFetch<T>("DELETE", path, query);
   }
 
   // Databases
@@ -139,12 +161,10 @@ class MyCMS {
   /**
    * Gets all the databases the user has access to
    * @param query The query that will be added to the request
-   * @param query.limit The number of results the response is limited to
-   * @param query.page The paginated page of the results
    * */
   async getDatabases(query: DatabasesQuery = {}) {
-    const res = await this.get("/databases", query);
-    return res.data;
+    const res = await this.get<APIDatabasesRepsonse>("/databases", query);
+    return res.data.databases;
   }
 
   /**
@@ -161,50 +181,88 @@ class MyCMS {
     }
   }
 
-  /** Creates a new database */
-  async createDatabase({ name }: { name: string }) {
+  /**
+   * Creates a new database
+   * @param name The name of the database
+   * @returns {Database} The created Database
+   */
+  async createDatabase(name: string): Promise<Database> {
     if (!name) return Promise.reject(buildRequiredArgError("name"));
     try {
-      const res = await this.post("/databases", { name });
-      return res.data;
+      const res = await this.post<APIDatabaseRepsonse>("/databases", { name });
+      return res.data.database;
     } catch (err) {
-      return (err as AxiosError<CMSError>).response!.data;
+      return Promise.reject({
+        message: (err as AxiosError<CMSError>).response!.data.message,
+      });
     }
   }
 
-  /** Deletes a database */
-  async deleteDatabase({ database_id }: { database_id: string }) {
+  /**
+   * Deletes a database by database ID. Returns null if no database is found
+   * @param database_id The unique ID of the database
+   * @returns Object with info on the delete database request. Null if no database is found
+   */
+  async deleteDatabaseById(database_id: string) {
     if (!database_id) return Promise.reject(buildRequiredArgError("database_id"));
     try {
-      const res = await this.delete(`/databases/${database_id}`);
-      return res.data;
+      const res = await this.delete<APIDeletedDatabaseResponse>(`/databases/${database_id}`);
+      const { status, ...data } = res.data;
+      return data as DeletedDatabaseResponse;
     } catch (err) {
-      return (err as AxiosError<CMSError>).response!.data;
+      return null;
     }
   }
 
-  /** Share a database with another user by email */
-  async shareDatabase({ database_id, email, role }: DatabaseShareParams) {
+  /**
+   * Shares a database by database ID with another user by email. Returns null if no
+   * database is found.
+   * @param database_id The unique ID of the database
+   * @param email The email of the user that the database will be shared with
+   * @param role The role the user will have within the database
+   * @returns {ShareResult} Object with `shared` boolean property explaining if the database was shared
+   * and a `message` property explaining the result
+   */
+  async shareDatabase(
+    database_id: string,
+    email: string,
+    role: DatabaseShareRoles
+  ): Promise<ShareResult> {
     if (!database_id) return Promise.reject(buildRequiredArgError("database_id"));
     if (!email) return Promise.reject(buildRequiredArgError("email"));
     if (!role) return Promise.reject(buildRequiredArgError("role"));
     try {
-      const res = await this.post(`/databases/${database_id}/share`, { email, role });
-      return res.data;
+      const res = await this.post<APIGenericResponse>(`/databases/${database_id}/share`, {
+        email,
+        role,
+      });
+      return { shared: true, message: res.data.message };
     } catch (err) {
-      return (err as AxiosError<CMSError>).response!.data;
+      return { shared: false, message: (err as AxiosError<CMSError>).response!.data.message };
     }
   }
 
-  /** Updates a database's name based on the database ID */
-  async updateDatabase({ database_id, name }: { database_id: string; name: string }) {
+  /**
+   * Updates a database's name based on the database ID. Returns null if no database
+   * is found
+   * @param database_id The unique database ID
+   * @param name The new name of the database
+   * @returns The new, updated database if the database was found. Returns null
+   * if no database is found
+   */
+  async updateDatabaseById(database_id: string, name: string) {
     if (!database_id) return Promise.reject(buildRequiredArgError("database_id"));
     if (!name) return Promise.reject(buildRequiredArgError("name"));
     try {
-      const res = await this.patch(`/databases/${database_id}`, { database_id, name });
-      return res.data;
+      const res = await this.patch<APIDatabaseRepsonse>(`/databases/${database_id}`, { name });
+      return res.data.database;
     } catch (err) {
-      return (err as AxiosError<CMSError>).response!.data;
+      const response = (err as AxiosError<CMSError>).response!;
+      if (response.status === 404 || response.data.message.startsWith("Invalid database"))
+        return null;
+      return Promise.reject({
+        message: (err as AxiosError<CMSError>).response!.data.message,
+      });
     }
   }
 }
@@ -227,27 +285,20 @@ const myCMS = init({ token });
 // const databases = myCMS.getDatabases({ limit: 2, page: 2 });
 // databases.then((d) => console.log(d));
 // const database = myCMS.getDatabaseById("60837f1c774a7f66e03f4f27");
+// database.then((d) => console.log(d)).catch((err) => console.log(err));
+// const database = myCMS.createDatabase("Another One");
+// database.then((d) => console.log(d)).catch((err) => console.log(err));
+// const database = myCMS.deleteDatabaseById("609f1e7ade3ee95b102d0c19");
 // database.then((d) => console.log(d)).catch((err) => console.log(new CMSError(err)));
-// const database = myCMS.createDatabase({ name: "Another Database" });
+// const database = myCMS.shareDatabase("609dd26ede3ee95b102d0c16", "second@user.com", "viewer");
 // database.then((d) => console.log(d)).catch((err) => console.log(new CMSError(err)));
-// const database = myCMS.deleteDatabase({ database_id: "609f1e7ade3ee95b102d0c19" });
-// database.then((d) => console.log(d)).catch((err) => console.log(new CMSError(err)));
-// const database = myCMS.shareDatabase({
-//   database_id: "609dd26ede3ee95b102d0c16",
-//   email: "second@user.com",
-//   role: "viewer",
-// });
-// database.then((d) => console.log(d)).catch((err) => console.log(new CMSError(err)));
-// const database = myCMS.updateDatabase({
-//   database_id: "609f1e7ade3ee95b102d0c19",
-//   name: "Another Edited Database",
-// });
-// database.then((d) => console.log(d)).catch((err) => console.log(new CMSError(err)));
+// const database = myCMS.updateDatabaseById("60a0055f4b52a351c824b9bg", "Mike");
+// database.then((d) => console.log(d)).catch((err) => console.log(err));
 
-const getDatabase = async (id: string) => {
-  const database = await myCMS.getDatabaseById(id);
-  if (!database) return "No Database";
+// const getDatabase = async (id: string) => {
+//   const database = await myCMS.getDatabaseById(id);
+//   if (!database) return "No Database";
 
-  return database;
-};
-getDatabase("60837f1c774a7f66e03f4f27").then((d) => console.log(d));
+//   return database;
+// };
+// getDatabase("60837f1c774a7f66e03f4f27").then((d) => console.log(d));

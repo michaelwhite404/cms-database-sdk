@@ -1,6 +1,8 @@
+import { ObjectId } from "mongodb";
+
 export interface CollectionField {
   /** Auto-generated ObjectId */
-  _id: string;
+  _id: string | ObjectId;
   /** The name of the collection field */
   name: string;
   /** The type of collection field */
@@ -48,13 +50,13 @@ export interface CollectionValidations {
 
 export default interface Collection {
   /** Auto-generated ObjectId of the collection */
-  _id: string;
+  _id: string | ObjectId;
   /** The name of the collection */
   name: string;
   /** The name of the collection in singular form (e.g. "Blog Posts" -> "Blog Post") */
   singularName: string;
   /** The database the collection is added to */
-  database: string;
+  database: string | ObjectId;
   /** The date the collection was created (Immutable) */
   createdAt: Date;
   /** The date the collection was last created (Not editable by user) */
@@ -73,7 +75,7 @@ export default interface Collection {
 
 export interface CollectionValidationOption {
   /** ID of the option */
-  _id: string;
+  _id: string | ObjectId;
   /** Name of the option */
   name: string;
 }

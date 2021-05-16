@@ -1,4 +1,5 @@
 import axios, { AxiosError, AxiosPromise, AxiosRequestConfig, Method } from "axios";
+import { UpdateQuery } from "mongoose";
 
 import CMSError, { buildRequiredArgError } from "./CMSError";
 import fieldTypes from "./enums/fieldTypes";
@@ -81,7 +82,7 @@ interface APIDeletedDatabaseResponse {
   status: "success";
   databasesDeleted: number;
   collectionsDeleted: number;
-  itemDeleted: number;
+  itemsDeleted: number;
 }
 
 type DeletedDatabaseResponse = Omit<APIDeletedDatabaseResponse, "status">;
@@ -120,6 +121,8 @@ interface APICollectionResponse {
 }
 
 type CollectionFieldType = typeof fieldTypes[number];
+
+type UpdateableCollectionProps = Pick<Collection, "name" | "slug">;
 
 interface CollectionData {
   /** The name of the collection being created */
@@ -186,6 +189,9 @@ interface CollectionData {
     primarySlug?: boolean;
   }[];
 }
+
+type APIDeletedCollectionResponse = Omit<APIDeletedDatabaseResponse, "databasesDeleted">;
+type DeletedCollectionResponse = Omit<APIDeletedCollectionResponse, "status">;
 
 class MyCMS {
   private endpoint: string;
@@ -268,15 +274,16 @@ class MyCMS {
   /**
    * Gets all the databases the user has access to
    * @param query The query that will be added to the request
+   * @returns {Promise<Database[]>} The returned databases
    * */
-  async getDatabases(query: QueryFeatures<Database> = {}) {
+  async getDatabases(query: QueryFeatures<Database> = {}): Promise<Database[]> {
     const finalQuery = this.createFinalQuery(query);
     const res = await this.get<APIDatabasesRepsonse>("/databases", finalQuery);
     return res.data.databases;
   }
 
   /**
-   * Retrieves database by database ID. Returns null if no database is found
+   * Retrieves database by `database_id`. Returns null if no database is found
    * @param database_id The unique ID of the database
    */
   async getDatabaseById(database_id: string) {
@@ -305,23 +312,27 @@ class MyCMS {
   }
 
   /**
-   * Deletes a database by database ID. Returns null if no database is found
+   * Deletes a database by `database_id`. Returns null if no database is found
    * @param database_id The unique ID of the database
-   * @returns Object with info on the delete database request. Null if no database is found
+   * @returns {Promise<DeletedDatabaseResponse | null>} Object with info on the delete database request.
+   * Null if no database is found
    */
-  async deleteDatabaseById(database_id: string) {
+  async deleteDatabaseById(database_id: string): Promise<DeletedDatabaseResponse | null> {
     if (!database_id) return Promise.reject(buildRequiredArgError("database_id"));
     try {
       const res = await this.delete<APIDeletedDatabaseResponse>(`/databases/${database_id}`);
       const { status, ...data } = res.data;
       return data as DeletedDatabaseResponse;
     } catch (err) {
-      return null;
+      const response = (err as AxiosError<CMSError>).response!;
+      if (response.status === 404 || response.data.message.startsWith("Invalid database"))
+        return null;
+      return Promise.reject((err as AxiosError<CMSError>).response!.data);
     }
   }
 
   /**
-   * Shares a database by database ID with another user by email. Returns null if no
+   * Shares a database by `database_id` with another user by email. Returns null if no
    * database is found.
    * @param database_id The unique ID of the database
    * @param email The email of the user that the database will be shared with
@@ -349,7 +360,7 @@ class MyCMS {
   }
 
   /**
-   * Updates a database's name based on the database ID. Returns null if no database
+   * Updates a database's name based on the `database_id`. Returns null if no database
    * is found
    * @param database_id The unique database ID
    * @param name The new name of the database
@@ -373,7 +384,7 @@ class MyCMS {
   // Collections
 
   /**
-   * Gets all collections in a database by database ID
+   * Gets all collections in a database by `database_id`
    * @param database_id The unique database ID
    */
   async getCollectionsByDatabaseId(database_id: string) {
@@ -383,7 +394,7 @@ class MyCMS {
   }
 
   /**
-   * Retrieves collection by collection ID. Returns null if no collection is found
+   * Retrieves collection by `collection_id`. Returns null if no collection is found
    * @param collection_id The unique ID of the collection
    */
   async getCollectionById(collection_id: string) {
@@ -397,7 +408,7 @@ class MyCMS {
   }
 
   /**
-   * Creates a new collection in a database
+   * Creates a new collection in a database by `database_id`
    * @param database_id - The database ID of the database the collection is being added to
    * @param data - An object defining the `name`, `slug` (optional), and collection `fields`
    * @returns {Promise<Collection>} The created collection
@@ -407,6 +418,7 @@ class MyCMS {
     data: CollectionData
   ): Promise<Collection> {
     if (!database_id) return Promise.reject(buildRequiredArgError("database_id"));
+    if (!data) return Promise.reject(buildRequiredArgError("data"));
     try {
       const res = await this.post<APICollectionResponse>("/collections", {
         database: database_id,
@@ -418,12 +430,45 @@ class MyCMS {
     }
   }
 
-  async updateCollectionById(collection_id: string) {
-    // TODO
+  /**
+   * Updates collection properties by `collection_id`
+   * @param collection_id The unique collection id
+   * @param update An object of the collection properties being updated
+   * @returns {Promise<Collection | null>} The updated collection. Null if no collection is found
+   */
+  async updateCollectionById(
+    collection_id: string,
+    update: UpdateQuery<UpdateableCollectionProps>
+  ): Promise<Collection | null> {
+    if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
+    try {
+      const res = await this.patch<APICollectionResponse>(`/collections/${collection_id}`, update);
+      return res.data.collection;
+    } catch (err) {
+      const response = (err as AxiosError<CMSError>).response!;
+      if (response.status === 404 || response.data.message.startsWith("Invalid _id")) {
+        return null;
+      }
+      return Promise.reject((err as AxiosError<CMSError>).response!.data);
+    }
   }
 
-  async deleteCollectionById(collection_id: string) {
-    // TODO
+  /**
+   * Deletes collection by `collection_id`. Returns null if no collection is found.
+   * @param collection_id The unique collection id
+   * @returns {Promise<DeletedCollectionResponse | null>} Object with info on the delete collection request.
+   * Null if no collection is found
+   */
+  async deleteCollectionById(collection_id: string): Promise<DeletedCollectionResponse | null> {
+    try {
+      const res = await this.delete<APIDeletedCollectionResponse>(`/collections/${collection_id}`);
+      const { status, ...data } = res.data;
+      return data as DeletedCollectionResponse;
+    } catch (err) {
+      const response = (err as AxiosError<CMSError>).response!;
+      if (response.status === 404 || response.data.message.startsWith("Invalid _id")) return null;
+      return Promise.reject((err as AxiosError<CMSError>).response!.data);
+    }
   }
 }
 const token =
@@ -466,31 +511,39 @@ const myCMS = init({ token });
 // myCMS.getCollectionsByDatabaseId("60837f1c774a7f66e03f4f27").then((c) => console.log(c));
 // const collection = myCMS.getCollectionById("6085e2db94ab6759c471f801");
 // collection.then((c) => console.log(c));
-const collection = myCMS.createCollectionByDatabaseId("60837f1c774a7f66e03f4f27", {
-  name: "Basketball Teams",
-  fields: [
-    {
-      name: "Rating",
-      type: "Number",
-      helpText: "What is the teams rating",
-    },
-    {
-      name: "Name",
-      type: "PlainText",
-      primaryName: true,
-    },
-    {
-      name: "Conference",
-      type: "Option",
-      validations: {
-        options: ["Eastern Conference", "Western Conference"],
-      },
-    },
-  ],
-});
-collection
-  .then((c) => {
-    const options = c.fields[3].validations?.options;
-    console.log(options);
-  })
-  .catch((err) => console.log(err));
+// const collection = myCMS.createCollectionByDatabaseId("60837f1c774a7f66e03f4f27", {
+//   name: "Basketball Teams",
+//   fields: [
+//     {
+//       name: "Rating",
+//       type: "Number",
+//       helpText: "What is the teams rating",
+//     },
+//     {
+//       name: "Name",
+//       type: "PlainText",
+//       primaryName: true,
+//     },
+//     {
+//       name: "Conference",
+//       type: "Option",
+//       validations: {
+//         options: ["Eastern Conference", "Western Conference"],
+//       },
+//     },
+//   ],
+// });
+// collection
+//   .then((c) => {
+//     const options = c.fields[3].validations?.options;
+//     console.log(options);
+//   })
+//   .catch((err) => console.log(err));
+
+// const collection = myCMS.updateCollectionById("60a143db723d347cc0d551cf", {
+//   name: "A New Collection",
+// });
+// collection.then((c) => console.log(c)).catch((err) => console.log(err));
+
+// const collection = myCMS.deleteCollectionById("60a11ececd18983c6c15f624");
+// collection.then((c) => console.log(c)).catch((err) => console.log(err));

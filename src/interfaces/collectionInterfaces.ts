@@ -15,8 +15,6 @@ export interface CollectionField {
   validations?: CollectionValidations;
   /** Human readable text that describes the field */
   helpText?: string;
-  /** The order number of the field */
-  order?: number;
   /** Denotes field is a primary field (only one allowed) */
   primary?: boolean;
 }

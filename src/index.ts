@@ -1,7 +1,8 @@
 import axios, { AxiosError, AxiosPromise, AxiosRequestConfig, Method } from "axios";
 
 import CMSError, { buildRequiredArgError } from "./CMSError";
-import Collection from "./interfaces/collectionInterfaces";
+import fieldTypes from "./enums/fieldTypes";
+import Collection, { CollectionValidations } from "./interfaces/collectionInterfaces";
 
 const DEFAULT_ENDPOINT = "http://localhost:5000/api/v1";
 
@@ -118,6 +119,74 @@ interface APICollectionResponse {
   collection: Collection;
 }
 
+type CollectionFieldType = typeof fieldTypes[number];
+
+interface CollectionData {
+  /** The name of the collection being created */
+  name: string;
+  /** The unique slug of the collection */
+  slug?: string;
+  /**
+   * The array of collection fields. Each collection field must have a `name` and `type`.
+   *
+   * Example:
+   *
+   *      fields: [
+   *        {
+   *          type: "Color",
+   *          name: "Color"
+   *        },
+   *        {
+   *          name: "Business Name",
+   *          type: "PlainText",
+   *          primaryName: true,
+   *        },
+   *        {
+   *          type: "Bool",
+   *          name: "Featured?",
+   *          helpText: "Should this business be featured?"
+   *        },
+   *        {
+   *          name: "Rating",
+   *          type: "Number",
+   *          required: true,
+   *          validations: {
+   *             allowNegative: false,
+   *             format: "integer",
+   *             maximum: 5
+   *          }
+   *        }
+   *      ]
+   */
+  fields: {
+    /** The type of collection field  */
+    type: CollectionFieldType;
+    /** The name of the collection field */
+    name: string;
+    /**
+     * Set to true if this field will be a required field
+     * @default false
+     */
+    required?: boolean;
+    /** Validations an item field must adhere to */
+    validations?: CollectionValidations;
+    /** Human readable text that describes the collection field */
+    helpText?: string;
+    /**
+     * Set to true if this field will be the primary name field. There can only be
+     * one primary name collection field
+     * @default false
+     */
+    primaryName?: boolean;
+    /**
+     * Set to true if this field will be the primary slug field. There can only be
+     * one primary slug collection field
+     * @default false
+     */
+    primarySlug?: boolean;
+  }[];
+}
+
 class MyCMS {
   private endpoint: string;
   token: string;
@@ -145,9 +214,6 @@ class MyCMS {
     };
 
     this.authenticatedFetch = <T>(method: Method, path: string, data: any, query = {}) => {
-      // const queryString = query && Object.keys(query).length === 0 ? `?${qs.stringify(query)}` : "";
-
-      // const url = `${this.endpoint}${path}${queryString}`;
       const config: AxiosRequestConfig = {
         url: `${this.endpoint}${path}`,
         method,
@@ -234,9 +300,7 @@ class MyCMS {
       const res = await this.post<APIDatabaseRepsonse>("/databases", { name });
       return res.data.database;
     } catch (err) {
-      return Promise.reject({
-        message: (err as AxiosError<CMSError>).response!.data.message,
-      });
+      return Promise.reject((err as AxiosError<CMSError>).response!.data);
     }
   }
 
@@ -302,9 +366,7 @@ class MyCMS {
       const response = (err as AxiosError<CMSError>).response!;
       if (response.status === 404 || response.data.message.startsWith("Invalid database"))
         return null;
-      return Promise.reject({
-        message: (err as AxiosError<CMSError>).response!.data.message,
-      });
+      return Promise.reject((err as AxiosError<CMSError>).response!.data);
     }
   }
 
@@ -332,6 +394,36 @@ class MyCMS {
     } catch (err) {
       return null;
     }
+  }
+
+  /**
+   * Creates a new collection in a database
+   * @param database_id - The database ID of the database the collection is being added to
+   * @param data - An object defining the `name`, `slug` (optional), and collection `fields`
+   * @returns {Promise<Collection>} The created collection
+   */
+  async createCollectionByDatabaseId(
+    database_id: string,
+    data: CollectionData
+  ): Promise<Collection> {
+    if (!database_id) return Promise.reject(buildRequiredArgError("database_id"));
+    try {
+      const res = await this.post<APICollectionResponse>("/collections", {
+        database: database_id,
+        ...data,
+      });
+      return res.data.collection;
+    } catch (err) {
+      return Promise.reject((err as AxiosError<CMSError>).response!.data);
+    }
+  }
+
+  async updateCollectionById(collection_id: string) {
+    // TODO
+  }
+
+  async deleteCollectionById(collection_id: string) {
+    // TODO
   }
 }
 const token =
@@ -372,5 +464,33 @@ const myCMS = init({ token });
 // getDatabase("60837f1c774a7f66e03f4f27").then((d) => console.log(d));
 
 // myCMS.getCollectionsByDatabaseId("60837f1c774a7f66e03f4f27").then((c) => console.log(c));
-const collection = myCMS.getCollectionById("6085e2db94ab6759c471f801");
-collection.then((c) => console.log(c));
+// const collection = myCMS.getCollectionById("6085e2db94ab6759c471f801");
+// collection.then((c) => console.log(c));
+const collection = myCMS.createCollectionByDatabaseId("60837f1c774a7f66e03f4f27", {
+  name: "Basketball Teams",
+  fields: [
+    {
+      name: "Rating",
+      type: "Number",
+      helpText: "What is the teams rating",
+    },
+    {
+      name: "Name",
+      type: "PlainText",
+      primaryName: true,
+    },
+    {
+      name: "Conference",
+      type: "Option",
+      validations: {
+        options: ["Eastern Conference", "Western Conference"],
+      },
+    },
+  ],
+});
+collection
+  .then((c) => {
+    const options = c.fields[3].validations?.options;
+    console.log(options);
+  })
+  .catch((err) => console.log(err));

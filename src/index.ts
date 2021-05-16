@@ -4,6 +4,7 @@ import { UpdateQuery } from "mongoose";
 import CMSError, { buildRequiredArgError } from "./CMSError";
 import fieldTypes from "./enums/fieldTypes";
 import Collection, { CollectionValidations } from "./interfaces/collectionInterfaces";
+import Item from "./interfaces/itemInterfaces";
 
 const DEFAULT_ENDPOINT = "http://localhost:5000/api/v1";
 
@@ -192,6 +193,16 @@ interface CollectionData {
 
 type APIDeletedCollectionResponse = Omit<APIDeletedDatabaseResponse, "databasesDeleted">;
 type DeletedCollectionResponse = Omit<APIDeletedCollectionResponse, "status">;
+
+interface APIItemsResponse extends MultipleResultsReponse {
+  status: "success";
+  items: Item[];
+}
+
+interface APIItemResponse extends MultipleResultsReponse {
+  status: "success";
+  item: Item;
+}
 
 class MyCMS {
   private endpoint: string;
@@ -441,6 +452,7 @@ class MyCMS {
     update: UpdateQuery<UpdateableCollectionProps>
   ): Promise<Collection | null> {
     if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
+    if (!update) return Promise.reject(buildRequiredArgError("update"));
     try {
       const res = await this.patch<APICollectionResponse>(`/collections/${collection_id}`, update);
       return res.data.collection;
@@ -460,6 +472,7 @@ class MyCMS {
    * Null if no collection is found
    */
   async deleteCollectionById(collection_id: string): Promise<DeletedCollectionResponse | null> {
+    if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
     try {
       const res = await this.delete<APIDeletedCollectionResponse>(`/collections/${collection_id}`);
       const { status, ...data } = res.data;
@@ -469,6 +482,50 @@ class MyCMS {
       if (response.status === 404 || response.data.message.startsWith("Invalid _id")) return null;
       return Promise.reject((err as AxiosError<CMSError>).response!.data);
     }
+  }
+
+  // Items
+
+  async getItemsByCollectionId(collection_id: string, query: QueryFeatures<Database> = {}) {
+    if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
+    const res = await this.get<APIItemsResponse>(`/collections/${collection_id}/items`, query);
+    return res.data.items;
+  }
+
+  async getItem(collection_id: string, item_id: string) {
+    if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
+    if (!item_id) return Promise.reject(buildRequiredArgError("item_id"));
+    try {
+      const res = await this.get<APIItemResponse>(`/collections/${collection_id}/items/${item_id}`);
+      return res.data.item;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  async createItem(collection_id: string, data: {}) {
+    if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
+    // TODO
+  }
+
+  async patchItemById(collection_id: string, item_id: string, update: UpdateQuery<any>) {
+    if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
+    if (!item_id) return Promise.reject(buildRequiredArgError("item_id"));
+    if (!update) return Promise.reject(buildRequiredArgError("update"));
+    // TODO
+  }
+
+  async putItemById(collection_id: string, item_id: string, update: UpdateQuery<any>) {
+    if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
+    if (!item_id) return Promise.reject(buildRequiredArgError("item_id"));
+    if (!update) return Promise.reject(buildRequiredArgError("update"));
+    // TODO
+  }
+
+  async deleteItemById(collection_id: string, item_id: string) {
+    if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
+    if (!item_id) return Promise.reject(buildRequiredArgError("item_id"));
+    // TODO
   }
 }
 const token =
@@ -487,63 +544,10 @@ export default function init(initilizer: CMSConstruct = {}) {
 }
 // Tests
 const myCMS = init({ token });
-// const databases = myCMS.getDatabases({ page: 2, limit: 2, fields: ["name", "slug"] });
-// databases.then((d) => console.log(d));
-// const database = myCMS.getDatabaseById("60837f1c774a7f66e03f4f27");
-// database.then((d) => console.log(d)).catch((err) => console.log(err));
-// const database = myCMS.createDatabase("Another One");
-// database.then((d) => console.log(d)).catch((err) => console.log(err));
-// const database = myCMS.deleteDatabaseById("609f1e7ade3ee95b102d0c19");
-// database.then((d) => console.log(d)).catch((err) => console.log(new CMSError(err)));
-// const database = myCMS.shareDatabase("609dd26ede3ee95b102d0c16", "second@user.com", "viewer");
-// database.then((d) => console.log(d)).catch((err) => console.log(new CMSError(err)));
-// const database = myCMS.updateDatabaseById("60a0055f4b52a351c824b9bg", "Mike");
-// database.then((d) => console.log(d)).catch((err) => console.log(err));
 
-// const getDatabase = async (id: string) => {
-//   const database = await myCMS.getDatabaseById(id);
-//   if (!database) return "No Database";
-
-//   return database;
-// };
-// getDatabase("60837f1c774a7f66e03f4f27").then((d) => console.log(d));
-
-// myCMS.getCollectionsByDatabaseId("60837f1c774a7f66e03f4f27").then((c) => console.log(c));
-// const collection = myCMS.getCollectionById("6085e2db94ab6759c471f801");
-// collection.then((c) => console.log(c));
-// const collection = myCMS.createCollectionByDatabaseId("60837f1c774a7f66e03f4f27", {
-//   name: "Basketball Teams",
-//   fields: [
-//     {
-//       name: "Rating",
-//       type: "Number",
-//       helpText: "What is the teams rating",
-//     },
-//     {
-//       name: "Name",
-//       type: "PlainText",
-//       primaryName: true,
-//     },
-//     {
-//       name: "Conference",
-//       type: "Option",
-//       validations: {
-//         options: ["Eastern Conference", "Western Conference"],
-//       },
-//     },
-//   ],
-// });
-// collection
-//   .then((c) => {
-//     const options = c.fields[3].validations?.options;
-//     console.log(options);
-//   })
-//   .catch((err) => console.log(err));
-
-// const collection = myCMS.updateCollectionById("60a143db723d347cc0d551cf", {
-//   name: "A New Collection",
-// });
-// collection.then((c) => console.log(c)).catch((err) => console.log(err));
-
-// const collection = myCMS.deleteCollectionById("60a11ececd18983c6c15f624");
-// collection.then((c) => console.log(c)).catch((err) => console.log(err));
+// Get Item
+const item = myCMS.getItem("6085aac7cb7ffb1780d6a9a2", "60860fded05c53422cf8ce36");
+item.then((i) => console.log(i));
+// Get All Items in Collection
+const items = myCMS.getItemsByCollectionId("6085aac7cb7ffb1780d6a9a2");
+items.then((items) => console.log(items));

@@ -2,18 +2,31 @@ import axios, { AxiosError, AxiosPromise, AxiosRequestConfig, Method } from "axi
 import { UpdateQuery } from "mongoose";
 
 import CMSError, { buildRequiredArgError } from "./CMSError";
-import fieldTypes from "./enums/fieldTypes";
-import Collection, { CollectionValidations } from "./interfaces/collectionInterfaces";
-import Item from "./interfaces/itemInterfaces";
+import Database, {
+  DatabaseShareRoles,
+  DeletedDatabaseResponse,
+  ShareResult,
+} from "./interfaces/databaseInterfaces";
+import Collection, {
+  CollectionData,
+  DeletedCollectionResponse,
+  UpdateableCollectionProps,
+} from "./interfaces/collectionInterfaces";
+import { APIGenericResponse, Headers } from "./interfaces/apiResponses/default";
+import { FinalQuery, QueryFeatures } from "./interfaces/queryInterfaces";
+import {
+  APIDatabaseRepsonse,
+  APIDatabasesRepsonse,
+  APIDeletedDatabaseResponse,
+} from "./interfaces/apiResponses/database";
+import {
+  APICollectionResponse,
+  APICollectionsResponse,
+  APIDeletedCollectionResponse,
+} from "./interfaces/apiResponses/collection";
+import { APIItemResponse, APIItemsResponse } from "./interfaces/apiResponses/items";
 
 const DEFAULT_ENDPOINT = "http://localhost:5000/api/v1";
-
-interface Headers {
-  Accept: string;
-  Authorization: string;
-  "accept-version": string;
-  "Content-Type": string;
-}
 
 interface CMSConstruct {
   /**
@@ -24,184 +37,6 @@ interface CMSConstruct {
    * @param version - The API version
    */
   version?: string;
-}
-
-type FinalQuery = Omit<QueryFeatures<any>, "fields"> & { fields?: string };
-interface QueryFeatures<T> {
-  /**
-   * @param page The paginated page of the results
-   * @default 1
-   */
-  page?: number;
-  /**
-   * @param limit The number of results the response is limited to
-   * @default 100
-   */
-  limit?: number;
-  /**
-   * @param sort The field(s) that set the sort order of the results
-   */
-  sort?: string;
-  /** @param fields An array of fields each result will limit itself to  */
-  fields?: Array<keyof T>;
-}
-
-type DatabaseShareRoles = "editor" | "viewer";
-
-interface Database {
-  /** The database _id */
-  _id: string;
-  /** The name of the database */
-  name: string;
-  /** The user that created the database */
-  createdBy: string;
-  /** Unique slug identifier for the database */
-  slug: string;
-  /** The timezone of the client of the database creator */
-  timezone: string;
-  /** The date the database was created */
-  createdAt: Date;
-}
-
-interface MultipleResultsReponse {
-  results: number;
-  page: number;
-  limit: number;
-}
-
-interface APIDatabasesRepsonse extends MultipleResultsReponse {
-  status: "success";
-  databases: Database[];
-}
-
-interface APIDatabaseRepsonse {
-  status: "success";
-  database: Database;
-}
-
-interface APIDeletedDatabaseResponse {
-  status: "success";
-  databasesDeleted: number;
-  collectionsDeleted: number;
-  itemsDeleted: number;
-}
-
-type DeletedDatabaseResponse = Omit<APIDeletedDatabaseResponse, "status">;
-
-interface APIGenericResponse {
-  status: "success";
-  message: "string";
-}
-
-interface SharePassed {
-  shared: true;
-  message: string;
-}
-
-interface ShareFailed {
-  shared: false;
-  message: string;
-}
-
-type ShareResult = SharePassed | ShareFailed;
-
-type BasicCollectionInfo = Pick<
-  Collection,
-  "_id" | "name" | "slug" | "createdAt" | "lastUpdated" | "singularName"
->;
-
-interface APICollectionsResponse extends MultipleResultsReponse {
-  status: "success";
-  database: string;
-  collections: BasicCollectionInfo[];
-}
-
-interface APICollectionResponse {
-  status: "success";
-  collection: Collection;
-}
-
-type CollectionFieldType = typeof fieldTypes[number];
-
-type UpdateableCollectionProps = Pick<Collection, "name" | "slug">;
-
-interface CollectionData {
-  /** The name of the collection being created */
-  name: string;
-  /** The unique slug of the collection */
-  slug?: string;
-  /**
-   * The array of collection fields. Each collection field must have a `name` and `type`.
-   *
-   * Example:
-   *
-   *      fields: [
-   *        {
-   *          type: "Color",
-   *          name: "Color"
-   *        },
-   *        {
-   *          name: "Business Name",
-   *          type: "PlainText",
-   *          primaryName: true,
-   *        },
-   *        {
-   *          type: "Bool",
-   *          name: "Featured?",
-   *          helpText: "Should this business be featured?"
-   *        },
-   *        {
-   *          name: "Rating",
-   *          type: "Number",
-   *          required: true,
-   *          validations: {
-   *             allowNegative: false,
-   *             format: "integer",
-   *             maximum: 5
-   *          }
-   *        }
-   *      ]
-   */
-  fields: {
-    /** The type of collection field  */
-    type: CollectionFieldType;
-    /** The name of the collection field */
-    name: string;
-    /**
-     * Set to true if this field will be a required field
-     * @default false
-     */
-    required?: boolean;
-    /** Validations an item field must adhere to */
-    validations?: CollectionValidations;
-    /** Human readable text that describes the collection field */
-    helpText?: string;
-    /**
-     * Set to true if this field will be the primary name field. There can only be
-     * one primary name collection field
-     * @default false
-     */
-    primaryName?: boolean;
-    /**
-     * Set to true if this field will be the primary slug field. There can only be
-     * one primary slug collection field
-     * @default false
-     */
-    primarySlug?: boolean;
-  }[];
-}
-
-type APIDeletedCollectionResponse = Omit<APIDeletedDatabaseResponse, "databasesDeleted">;
-type DeletedCollectionResponse = Omit<APIDeletedCollectionResponse, "status">;
-
-interface APIItemsResponse extends MultipleResultsReponse {
-  status: "success";
-  items: Item[];
-}
-
-interface APIItemResponse extends MultipleResultsReponse {
-  status: "success";
-  item: Item;
 }
 
 class MyCMS {
@@ -382,7 +217,9 @@ class MyCMS {
     if (!database_id) return Promise.reject(buildRequiredArgError("database_id"));
     if (!name) return Promise.reject(buildRequiredArgError("name"));
     try {
-      const res = await this.patch<APIDatabaseRepsonse>(`/databases/${database_id}`, { name });
+      const res = await this.patch<APIDatabaseRepsonse>(`/databases/${database_id}`, {
+        name,
+      });
       return res.data.database;
     } catch (err) {
       const response = (err as AxiosError<CMSError>).response!;

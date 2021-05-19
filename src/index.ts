@@ -334,12 +334,30 @@ class MyCMS {
 
   // Items
 
-  async getItemsByCollectionId(collection_id: string, query: QueryFeatures<Database> = {}) {
+  /**
+   * Gets all items in a collection by `collection_id`
+   * @param collection_id The unique collection ID
+   * @param query The query that will be added to the request
+   * @returns {Promise<Item[]>} All items in the collection
+   */
+  async getItemsByCollectionId(
+    collection_id: string,
+    query: QueryFeatures<Database> = {}
+  ): Promise<Item[]> {
     if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
     const res = await this.get<APIItemsResponse>(`/collections/${collection_id}/items`, query);
     return res.data.items;
   }
 
+  /**
+   * Gets an item. Parameters must include both `collection_id` and `item_id`. Returns
+   * null if either the `collection_id` is not valid or a combination of the
+   * `collection_id` and the `item_id` is not found. Returns null if no item is
+   * found.
+   * @param collection_id The unique collection ID
+   * @param item_id The unique item ID
+   * @returns The queried item. Null if no item is found
+   */
   async getItem(collection_id: string, item_id: string) {
     if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
     if (!item_id) return Promise.reject(buildRequiredArgError("item_id"));
@@ -351,7 +369,16 @@ class MyCMS {
     }
   }
 
-  async createItem<ItemModel extends Item>(collection_id: string, data: ItemData<ItemModel>) {
+  /**
+   * Creates a new Item in a Collection by `collection_id`.
+   * @param collection_id The unique collection ID
+   * @param data 	The fields of the Item being added to the Collection
+   * @returns {Promise<Item>} A new Item
+   */
+  async createItem<ItemModel extends Item>(
+    collection_id: string,
+    data: ItemData<ItemModel>
+  ): Promise<Item> {
     if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
     if (!data) return Promise.reject(buildRequiredArgError("data"));
     try {
@@ -362,18 +389,28 @@ class MyCMS {
     }
   }
 
+  /**
+   * Updates an Item. Only the fields in `fields` parameter will be updated.
+   * Parameters must include both `collection_id` and `item_id`. Returns null if
+   * either the `collection_id` is not valid or a combination of the
+   * `collection_id` and the `item_id` is not found.
+   * @param collection_id The unique collection ID
+   * @param item_id The unique item ID
+   * @param fields The updated fields of the Item
+   * @returns {Promise<Item | null>} The updated Item. Returns null if no Item was found.
+   */
   async patchItemById<ItemModel extends Item>(
     collection_id: string,
     item_id: string,
-    update: Partial<ItemData<ItemModel>>
-  ) {
+    fields: Partial<ItemData<ItemModel>>
+  ): Promise<Item | null> {
     if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
     if (!item_id) return Promise.reject(buildRequiredArgError("item_id"));
-    if (!update) return Promise.reject(buildRequiredArgError("update"));
+    if (!fields) return Promise.reject(buildRequiredArgError("fields"));
     try {
       const res = await this.patch<APIItemResponse>(
         `/collections/${collection_id}/items/${item_id}`,
-        update
+        fields
       );
       return res.data.item;
     } catch (err) {
@@ -385,18 +422,28 @@ class MyCMS {
     }
   }
 
+  /**
+   * Updates an Item. Replaces the fields of an existent Item with the fields specified
+   * in the `fields` parameter. Parameters must include both `collection_id` and
+   * `item_id`. Returns null if either the `collection_id` is not valid or a
+   * combination of the `collection_id` and the `item_id` is not found.
+   * @param collection_id The unique collection ID
+   * @param item_id The unique item ID
+   * @param fields The updated fields of the Item
+   * @returns {Promise<Item | null>} The updated Item. Returns null if no Item was found.
+   */
   async putItemById<ItemModel extends Item>(
     collection_id: string,
     item_id: string,
-    update: ItemData<ItemModel>
-  ) {
+    fields: ItemData<ItemModel>
+  ): Promise<Item | null> {
     if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
     if (!item_id) return Promise.reject(buildRequiredArgError("item_id"));
-    if (!update) return Promise.reject(buildRequiredArgError("update"));
+    if (!fields) return Promise.reject(buildRequiredArgError("fields"));
     try {
       const res = await this.put<APIItemResponse>(
         `/collections/${collection_id}/items/${item_id}`,
-        update
+        fields
       );
       return res.data.item;
     } catch (err) {
@@ -408,7 +455,19 @@ class MyCMS {
     }
   }
 
-  async deleteItemById(collection_id: string, item_id: string) {
+  /**
+   * Deletes an item. Parameters must include both `collection_id` and
+   * `item_id`. Returns null if either the `collection_id` is not valid or a
+   * combination of the `collection_id` and the `item_id` is not found.
+   * @param collection_id The unique collection ID
+   * @param item_id The unique item ID
+   * @returns {Promise<DeletedItemResponse | null>} Object with info on the delete Item
+   * request. Null if no Item is found
+   */
+  async deleteItemById(
+    collection_id: string,
+    item_id: string
+  ): Promise<DeletedItemResponse | null> {
     if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
     if (!item_id) return Promise.reject(buildRequiredArgError("item_id"));
     try {

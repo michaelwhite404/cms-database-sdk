@@ -2,8 +2,6 @@ import { ObjectId } from "mongodb";
 
 export default interface Item {
   _id: ObjectId | string;
-  /** Unique slug identifier for the item */
-  slug: string;
   /** The collection ID the item belongs to */
   _cid: ObjectId | string;
   /** The database ID the item belongs to */
@@ -16,8 +14,6 @@ export default interface Item {
   "updated-on": string | Date | number;
   /** The date the item was created (Immutable) */
   "created-on": string;
-  /** Item fields created in the request body */
-  fields: ItemFields;
   /** Test */
   item_id: string;
   /** Additional Fields */

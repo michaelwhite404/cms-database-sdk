@@ -25,6 +25,7 @@ import {
   APIDeletedCollectionResponse,
 } from "./interfaces/apiResponses/collection";
 import { APIItemResponse, APIItemsResponse } from "./interfaces/apiResponses/items";
+import Item from "./interfaces/itemInterfaces";
 
 const DEFAULT_ENDPOINT = "http://localhost:5000/api/v1";
 
@@ -38,6 +39,12 @@ interface CMSConstruct {
    */
   version?: string;
 }
+
+type RemoveIndex<T> = {
+  [P in keyof T as string extends P ? never : number extends P ? never : P]: T[P];
+};
+
+type ItemData<T> = Omit<RemoveIndex<T>, keyof RemoveIndex<Item>>;
 
 class MyCMS {
   private endpoint: string;
@@ -210,10 +217,10 @@ class MyCMS {
    * is found
    * @param database_id The unique database ID
    * @param name The new name of the database
-   * @returns The new, updated database if the database was found. Returns null
-   * if no database is found
+   * @returns {Promise<Database | null>} The new, updated database if the database was found. Returns
+   * null if no database is found
    */
-  async updateDatabaseById(database_id: string, name: string) {
+  async updateDatabaseById(database_id: string, name: string): Promise<Database | null> {
     if (!database_id) return Promise.reject(buildRequiredArgError("database_id"));
     if (!name) return Promise.reject(buildRequiredArgError("name"));
     try {
@@ -305,8 +312,8 @@ class MyCMS {
   /**
    * Deletes collection by `collection_id`. Returns null if no collection is found.
    * @param collection_id The unique collection id
-   * @returns {Promise<DeletedCollectionResponse | null>} Object with info on the delete collection request.
-   * Null if no collection is found
+   * @returns {Promise<DeletedCollectionResponse | null>} Object with info on the delete collection
+   * request. Null if no collection is found
    */
   async deleteCollectionById(collection_id: string): Promise<DeletedCollectionResponse | null> {
     if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
@@ -340,16 +347,30 @@ class MyCMS {
     }
   }
 
-  async createItem(collection_id: string, data: {}) {
+  async createItem<ItemModel extends Item>(collection_id: string, data: ItemData<ItemModel>) {
     if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
-    // TODO
+    if (!data) return Promise.reject(buildRequiredArgError("data"));
+    try {
+      const res = await this.post<APIItemResponse>(`/collections/${collection_id}/items`, data);
+      return res.data.item;
+    } catch (err) {
+      return Promise.reject((err as AxiosError<CMSError>).response!.data);
+    }
   }
 
   async patchItemById(collection_id: string, item_id: string, update: UpdateQuery<any>) {
     if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
     if (!item_id) return Promise.reject(buildRequiredArgError("item_id"));
     if (!update) return Promise.reject(buildRequiredArgError("update"));
-    // TODO
+    try {
+      const res = await this.patch<APIItemResponse>(
+        `/collections/${collection_id}/items/${item_id}`,
+        update
+      );
+      return res.data.item;
+    } catch (err) {
+      // TODO
+    }
   }
 
   async putItemById(collection_id: string, item_id: string, update: UpdateQuery<any>) {
@@ -383,8 +404,25 @@ export default function init(initilizer: CMSConstruct = {}) {
 const myCMS = init({ token });
 
 // Get Item
-const item = myCMS.getItem("6085aac7cb7ffb1780d6a9a2", "60860fded05c53422cf8ce36");
-item.then((i) => console.log(i));
-// Get All Items in Collection
-const items = myCMS.getItemsByCollectionId("6085aac7cb7ffb1780d6a9a2");
-items.then((items) => console.log(items));
+// const item = myCMS.getItem("6085aac7cb7ffb1780d6a9a2", "60860fded05c53422cf8ce36");
+// item.then((i) => console.log(i));
+// // Get All Items in Collection
+// const items = myCMS.getItemsByCollectionId("6085aac7cb7ffb1780d6a9a2");
+// items.then((items) => console.log(items));
+// Create Item
+interface TestItem extends Item {
+  "business-name": string;
+  color: string;
+  slug: string;
+  /** A rating */
+  rating: number;
+}
+myCMS
+  .createItem<TestItem>("6085aac7cb7ffb1780d6a9a2", {
+    color: "#010101",
+    "business-name": "Adidas",
+    slug: "adi",
+    rating: 4,
+  })
+  .then((i) => console.log(i))
+  .catch((e) => console.log(e));

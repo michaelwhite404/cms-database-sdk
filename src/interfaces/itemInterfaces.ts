@@ -1,4 +1,5 @@
 import { ObjectId } from "mongodb";
+import { APIDeletedItemResponse } from "./apiResponses/items";
 
 export default interface Item {
   _id: ObjectId | string;
@@ -27,3 +28,5 @@ export interface ItemFields {
 export interface ItemField {
   [field: string]: any;
 }
+
+export type DeletedItemResponse = Omit<APIDeletedItemResponse, "status">;

@@ -24,8 +24,12 @@ import {
   APICollectionsResponse,
   APIDeletedCollectionResponse,
 } from "./interfaces/apiResponses/collection";
-import { APIItemResponse, APIItemsResponse } from "./interfaces/apiResponses/items";
-import Item from "./interfaces/itemInterfaces";
+import {
+  APIDeletedItemResponse,
+  APIItemResponse,
+  APIItemsResponse,
+} from "./interfaces/apiResponses/items";
+import Item, { DeletedItemResponse } from "./interfaces/itemInterfaces";
 
 const DEFAULT_ENDPOINT = "http://localhost:5000/api/v1";
 
@@ -358,7 +362,11 @@ class MyCMS {
     }
   }
 
-  async patchItemById(collection_id: string, item_id: string, update: UpdateQuery<any>) {
+  async patchItemById<ItemModel extends Item>(
+    collection_id: string,
+    item_id: string,
+    update: Partial<ItemData<ItemModel>>
+  ) {
     if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
     if (!item_id) return Promise.reject(buildRequiredArgError("item_id"));
     if (!update) return Promise.reject(buildRequiredArgError("update"));
@@ -369,21 +377,51 @@ class MyCMS {
       );
       return res.data.item;
     } catch (err) {
-      // TODO
+      const response = (err as AxiosError<CMSError>).response!;
+      if (response.status === 404 || response.data.message.startsWith("Invalid _id")) {
+        return null;
+      }
+      return Promise.reject((err as AxiosError<CMSError>).response!.data);
     }
   }
 
-  async putItemById(collection_id: string, item_id: string, update: UpdateQuery<any>) {
+  async putItemById<ItemModel extends Item>(
+    collection_id: string,
+    item_id: string,
+    update: ItemData<ItemModel>
+  ) {
     if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
     if (!item_id) return Promise.reject(buildRequiredArgError("item_id"));
     if (!update) return Promise.reject(buildRequiredArgError("update"));
-    // TODO
+    try {
+      const res = await this.put<APIItemResponse>(
+        `/collections/${collection_id}/items/${item_id}`,
+        update
+      );
+      return res.data.item;
+    } catch (err) {
+      const response = (err as AxiosError<CMSError>).response!;
+      if (response.status === 404 || response.data.message.startsWith("Invalid _id")) {
+        return null;
+      }
+      return Promise.reject((err as AxiosError<CMSError>).response!.data);
+    }
   }
 
   async deleteItemById(collection_id: string, item_id: string) {
     if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
     if (!item_id) return Promise.reject(buildRequiredArgError("item_id"));
-    // TODO
+    try {
+      const res = await this.delete<APIDeletedItemResponse>(
+        `/collections/${collection_id}/items/${item_id}`
+      );
+      const { status, ...data } = res.data;
+      return data as DeletedItemResponse;
+    } catch (err) {
+      const response = (err as AxiosError<CMSError>).response!;
+      if (response.status === 404 || response.data.message.startsWith("Invalid _id")) return null;
+      return Promise.reject((err as AxiosError<CMSError>).response!.data);
+    }
   }
 }
 const token =
@@ -410,19 +448,39 @@ const myCMS = init({ token });
 // const items = myCMS.getItemsByCollectionId("6085aac7cb7ffb1780d6a9a2");
 // items.then((items) => console.log(items));
 // Create Item
-interface TestItem extends Item {
-  "business-name": string;
-  color: string;
-  slug: string;
-  /** A rating */
-  rating: number;
-}
-myCMS
-  .createItem<TestItem>("6085aac7cb7ffb1780d6a9a2", {
-    color: "#010101",
-    "business-name": "Adidas",
-    slug: "adi",
-    rating: 4,
-  })
-  .then((i) => console.log(i))
-  .catch((e) => console.log(e));
+// interface TestItem extends Item {
+//   "business-name": string;
+//   color?: string;
+//   slug: string;
+//   featured?: boolean;
+//   /** A rating */
+//   rating: number;
+// }
+// myCMS
+//   .createItem<TestItem>("6085aac7cb7ffb1780d6a9a2", {
+//     color: "#010101",
+//     "business-name": "Adidas",
+//     slug: "adi",
+//     rating: 4,
+//   })
+//   .then((i) => console.log(i))
+//   .catch((e) => console.log(e));
+
+// myCMS
+//   .patchItemById<TestItem>("6085aac7cb7ffb1780d6a9a2", "60a513d68a46fc5d689784c9", {
+//     featured: true,
+//   })
+//   .then((i) => console.log(i))
+//   .catch((e) => console.log(e));
+
+// const item = myCMS.putItemById<TestItem>("6085aac7cb7ffb1780d6a9a2", "60a513d68a46fc5d689784c9", {
+//   "business-name": "Mike's Shoe Store",
+//   slug: "mikes-shoe-store",
+//   color: "#e30e9c",
+//   rating: 5,
+// });
+
+// item.then((i) => console.log(i)).catch((e) => console.log(e));
+
+// const res = myCMS.deleteItemById("6085aac7cb7ffb1780d6a9a2", "60a513d68a46fc5d689784c9");
+// res.then((r) => console.log(r)).catch((e) => console.log(e));

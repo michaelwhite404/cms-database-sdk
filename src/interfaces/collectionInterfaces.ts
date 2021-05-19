@@ -93,7 +93,7 @@ export interface CollectionData {
   /** The unique slug of the collection */
   slug?: string;
   /**
-   * The array of collection fields. Each collection field must have a `name` and `type`.
+   * An array of collection fields. Each collection field must have a `name` and `type`.
    *
    * Example:
    *

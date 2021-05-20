@@ -2,14 +2,14 @@ import Item from "../itemInterfaces";
 import { APIDeletedCollectionResponse } from "./collection";
 import { MultipleResultsReponse } from "./default";
 
-export interface APIItemsResponse extends MultipleResultsReponse {
+export interface APIItemsResponse<T extends Item> extends MultipleResultsReponse {
   status: "success";
-  items: Item[];
+  items: T[];
 }
 
-export interface APIItemResponse {
+export interface APIItemResponse<T extends Item> {
   status: "success";
-  item: Item;
+  item: T;
 }
 
 export type APIDeletedItemResponse = Omit<APIDeletedCollectionResponse, "collectionsDeleted">;

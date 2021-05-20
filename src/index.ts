@@ -338,14 +338,18 @@ class MyCMS {
    * Gets all items in a collection by `collection_id`
    * @param collection_id The unique collection ID
    * @param query The query that will be added to the request
-   * @returns {Promise<Item[]>} All items in the collection
+   * @returns All items in the collection
    */
-  async getItemsByCollectionId(
+  async getItemsByCollectionId<ItemModel extends Item>(
     collection_id: string,
-    query: QueryFeatures<Database> = {}
-  ): Promise<Item[]> {
+    query: QueryFeatures<RemoveIndex<ItemModel>> = {}
+  ) {
+    const finalQuery = this.createFinalQuery(query);
     if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
-    const res = await this.get<APIItemsResponse>(`/collections/${collection_id}/items`, query);
+    const res = await this.get<APIItemsResponse<ItemModel>>(
+      `/collections/${collection_id}/items`,
+      finalQuery
+    );
     return res.data.items;
   }
 
@@ -356,13 +360,18 @@ class MyCMS {
    * found.
    * @param collection_id The unique collection ID
    * @param item_id The unique item ID
-   * @returns The queried item. Null if no item is found
+   * @returns {Promise<ItemModel | null>} The queried item. Null if no item is found
    */
-  async getItem(collection_id: string, item_id: string) {
+  async getItem<ItemModel extends Item>(
+    collection_id: string,
+    item_id: string
+  ): Promise<ItemModel | null> {
     if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
     if (!item_id) return Promise.reject(buildRequiredArgError("item_id"));
     try {
-      const res = await this.get<APIItemResponse>(`/collections/${collection_id}/items/${item_id}`);
+      const res = await this.get<APIItemResponse<ItemModel>>(
+        `/collections/${collection_id}/items/${item_id}`
+      );
       return res.data.item;
     } catch (err) {
       return null;
@@ -373,16 +382,19 @@ class MyCMS {
    * Creates a new Item in a Collection by `collection_id`.
    * @param collection_id The unique collection ID
    * @param data 	The fields of the Item being added to the Collection
-   * @returns {Promise<Item>} A new Item
+   * @returns {Promise<ItemModel>} A new Item
    */
   async createItem<ItemModel extends Item>(
     collection_id: string,
     data: ItemData<ItemModel>
-  ): Promise<Item> {
+  ): Promise<ItemModel> {
     if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
     if (!data) return Promise.reject(buildRequiredArgError("data"));
     try {
-      const res = await this.post<APIItemResponse>(`/collections/${collection_id}/items`, data);
+      const res = await this.post<APIItemResponse<ItemModel>>(
+        `/collections/${collection_id}/items`,
+        data
+      );
       return res.data.item;
     } catch (err) {
       return Promise.reject((err as AxiosError<CMSError>).response!.data);
@@ -397,18 +409,18 @@ class MyCMS {
    * @param collection_id The unique collection ID
    * @param item_id The unique item ID
    * @param fields The updated fields of the Item
-   * @returns {Promise<Item | null>} The updated Item. Returns null if no Item was found.
+   * @returns {Promise<ItemModel | null>} The updated Item. Returns null if no Item was found.
    */
   async patchItemById<ItemModel extends Item>(
     collection_id: string,
     item_id: string,
     fields: Partial<ItemData<ItemModel>>
-  ): Promise<Item | null> {
+  ): Promise<ItemModel | null> {
     if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
     if (!item_id) return Promise.reject(buildRequiredArgError("item_id"));
     if (!fields) return Promise.reject(buildRequiredArgError("fields"));
     try {
-      const res = await this.patch<APIItemResponse>(
+      const res = await this.patch<APIItemResponse<ItemModel>>(
         `/collections/${collection_id}/items/${item_id}`,
         fields
       );
@@ -430,18 +442,18 @@ class MyCMS {
    * @param collection_id The unique collection ID
    * @param item_id The unique item ID
    * @param fields The updated fields of the Item
-   * @returns {Promise<Item | null>} The updated Item. Returns null if no Item was found.
+   * @returns {Promise<ItemModel | null>} The updated Item. Returns null if no Item was found.
    */
   async putItemById<ItemModel extends Item>(
     collection_id: string,
     item_id: string,
     fields: ItemData<ItemModel>
-  ): Promise<Item | null> {
+  ): Promise<ItemModel | null> {
     if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
     if (!item_id) return Promise.reject(buildRequiredArgError("item_id"));
     if (!fields) return Promise.reject(buildRequiredArgError("fields"));
     try {
-      const res = await this.put<APIItemResponse>(
+      const res = await this.put<APIItemResponse<ItemModel>>(
         `/collections/${collection_id}/items/${item_id}`,
         fields
       );
@@ -501,11 +513,14 @@ export default function init(initilizer: CMSConstruct = {}) {
 const myCMS = init({ token });
 
 // Get Item
-// const item = myCMS.getItem("6085aac7cb7ffb1780d6a9a2", "60860fded05c53422cf8ce36");
+// const item = myCMS.getItem<TestItem>("6085aac7cb7ffb1780d6a9a2", "60860fded05c53422cf8ce36");
 // item.then((i) => console.log(i));
 // // Get All Items in Collection
-// const items = myCMS.getItemsByCollectionId("6085aac7cb7ffb1780d6a9a2");
-// items.then((items) => console.log(items));
+// /* myCMS.getDatabases({fields: []}) */
+// const items = myCMS.getItemsByCollectionId<TestItem>("6085aac7cb7ffb1780d6a9a2", {
+//   fields: ["color", "business-name"],
+// });
+// items.then((items) => console.log(items)).catch((e) => console.log(e));
 // Create Item
 // interface TestItem extends Item {
 //   "business-name": string;

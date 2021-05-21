@@ -387,7 +387,7 @@ class MyCMS {
   /**
    * Creates a new Item in a Collection by `collection_id`.
    * @param collection_id The unique collection ID
-   * @param data 	The fields of the Item being added to the Collection
+   * @param data The fields of the Item being added to the Collection
    * @returns {Promise<ItemModel>} A new Item
    */
   async createItem<ItemModel extends Item>(
@@ -503,6 +503,11 @@ class MyCMS {
 
   // Fields
 
+  /**
+   * Returns all fields in a collection by `collection_id`. Will return `null` if no
+   * collection is found
+   * @param collection_id The unique collection ID
+   */
   async getCollectionFields(collection_id: string) {
     if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
     try {
@@ -515,6 +520,14 @@ class MyCMS {
     }
   }
 
+  /**
+   * Return a field in a collection by `collection_id` and `field_id`. Parameters
+   * must include both `collection_id` and `field_id`. Returns null if either the
+   * `collection_id` is not valid or a combination of the `collection_id` and the
+   * `field_id` is not found.
+   * @param collection_id The unique collection ID
+   * @param field_id The unique field ID
+   */
   async getCollectionField(collection_id: string, field_id: string) {
     if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
     if (!field_id) return Promise.reject(buildRequiredArgError("field_id"));
@@ -528,6 +541,12 @@ class MyCMS {
     }
   }
 
+  /**
+   * Creates a new field in a collection by `collection_id`
+   * @param collection_id The unique collection ID
+   * @param data The fields of the Collection Field being added to the Collection
+   * @returns A new Collection Field
+   */
   async createCollectionField(collection_id: string, data: CollectionDataFields) {
     if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
     if (!data) return Promise.reject(buildRequiredArgError("data"));
@@ -542,6 +561,15 @@ class MyCMS {
     }
   }
 
+  /**
+   * Updates a Collection Field. Parameters must include both `collection_id` and
+   * `field_id`. Returns null if either the `collection_id` is not valid or a
+   * combination of the `collection_id` and the `field_id` is not found.
+   * @param collection_id The unique collection ID
+   * @param field_id The unique field ID
+   * @param fields
+   * @returns
+   */
   async updateCollectionField(
     collection_id: string,
     field_id: string,
@@ -563,6 +591,14 @@ class MyCMS {
     }
   }
 
+  /**
+   * Deletes a Collection Field. Parameters must include both `collection_id` and
+   * `field_id`. Returns null if either the `collection_id` is not valid or a
+   * combination of the `collection_id` and the `field_id` is not found.
+   * @param collection_id The unique collection ID
+   * @param field_id The unique field ID
+   * @returns
+   */
   async deleteCollectionField(collection_id: string, field_id: string) {
     if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
     if (!field_id) return Promise.reject(buildRequiredArgError("field_id"));
@@ -595,26 +631,3 @@ export default function init(initilizer: CMSConstruct = {}) {
 }
 // Tests
 const api = init({ token });
-
-// api.getCollectionFields("6085aac7cb7ffb1780d6a9a2").then((f) => console.log(f));
-// api
-//   .getCollectionField("6085aac7cb7ffb1780d6a9a2", "6085aac7cb7ffb1780d6a9a8")
-//   .then((f) => console.log(f));
-// api
-//   .createCollectionField("6085aac7cb7ffb1780d6a9a2", {
-//     name: "Email Address",
-//     type: "Email",
-//     required: false,
-//   })
-//   .then((f) => console.log(f))
-//   .catch((e) => console.log(e));
-// api
-// .updateCollectionField("6085aac7cb7ffb1780d6a9a2", "60a717c726547b6e2468d6b0", {
-//   name: "Email",
-// })
-// .then((f) => console.log(f))
-// .catch((e) => console.log(e));
-// api
-//   .deleteCollectionField("6085aac7cb7ffb1780d6a9a2", "60a718b026547b6e2468d6b2")
-//   .then((f) => console.log(f))
-//   .catch((e) => console.log(e));

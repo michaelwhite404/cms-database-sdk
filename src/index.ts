@@ -614,7 +614,7 @@ const api = init({ token });
 // })
 // .then((f) => console.log(f))
 // .catch((e) => console.log(e));
-api
-  .deleteCollectionField("6085aac7cb7ffb1780d6a9a2", "60a718b026547b6e2468d6b2")
-  .then((f) => console.log(f))
-  .catch((e) => console.log(e));
+// api
+//   .deleteCollectionField("6085aac7cb7ffb1780d6a9a2", "60a718b026547b6e2468d6b2")
+//   .then((f) => console.log(f))
+//   .catch((e) => console.log(e));

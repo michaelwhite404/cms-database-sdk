@@ -1,4 +1,4 @@
-import Collection, { BasicCollectionInfo } from "../collectionInterfaces";
+import Collection, { BasicCollectionInfo, CollectionField } from "../collectionInterfaces";
 import { APIDeletedDatabaseResponse } from "../apiResponses/database";
 import { MultipleResultsReponse } from "./default";
 
@@ -13,3 +13,13 @@ export interface APICollectionResponse {
   collection: Collection;
 }
 export type APIDeletedCollectionResponse = Omit<APIDeletedDatabaseResponse, "databasesDeleted">;
+
+export interface APICollectionFieldsResponse {
+  status: "success";
+  fields: CollectionField[];
+}
+
+export interface APICollectionFieldResponse {
+  status: "success";
+  field: CollectionField;
+}

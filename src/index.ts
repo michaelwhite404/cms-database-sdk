@@ -8,7 +8,11 @@ import Database, {
   ShareResult,
 } from "./interfaces/databaseInterfaces";
 import Collection, {
+  APIDeletedCollectionFieldResponse,
   CollectionData,
+  CollectionDataFields,
+  CollectionField,
+  DeletedCollectionFieldResponse,
   DeletedCollectionResponse,
   UpdateableCollectionProps,
 } from "./interfaces/collectionInterfaces";
@@ -20,6 +24,8 @@ import {
   APIDeletedDatabaseResponse,
 } from "./interfaces/apiResponses/database";
 import {
+  APICollectionFieldResponse,
+  APICollectionFieldsResponse,
   APICollectionResponse,
   APICollectionsResponse,
   APIDeletedCollectionResponse,
@@ -494,6 +500,84 @@ class MyCMS {
       return Promise.reject((err as AxiosError<CMSError>).response!.data);
     }
   }
+
+  // Fields
+
+  async getCollectionFields(collection_id: string) {
+    if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
+    try {
+      const res = await this.get<APICollectionFieldsResponse>(
+        `/collections/${collection_id}/fields`
+      );
+      return res.data.fields;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  async getCollectionField(collection_id: string, field_id: string) {
+    if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
+    if (!field_id) return Promise.reject(buildRequiredArgError("field_id"));
+    try {
+      const res = await this.get<APICollectionFieldResponse>(
+        `/collections/${collection_id}/fields/${field_id}`
+      );
+      return res.data.field;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  async createCollectionField(collection_id: string, data: CollectionDataFields) {
+    if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
+    if (!data) return Promise.reject(buildRequiredArgError("data"));
+    try {
+      const res = await this.post<APICollectionFieldResponse>(
+        `/collections/${collection_id}/fields/`,
+        data
+      );
+      return res.data.field;
+    } catch (err) {
+      return Promise.reject((err as AxiosError<CMSError>).response!.data);
+    }
+  }
+
+  async updateCollectionField(
+    collection_id: string,
+    field_id: string,
+    fields: Partial<CollectionField>
+  ) {
+    if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
+    if (!field_id) return Promise.reject(buildRequiredArgError("field_id"));
+    if (!fields) return Promise.reject(buildRequiredArgError("fields"));
+    try {
+      const res = await this.patch<APICollectionFieldResponse>(
+        `/collections/${collection_id}/fields/${field_id}`,
+        fields
+      );
+      return res.data.field;
+    } catch (err) {
+      const response = (err as AxiosError<CMSError>).response!;
+      if (response.status === 404 || response.data.message.startsWith("Invalid _id")) return null;
+      return Promise.reject((err as AxiosError<CMSError>).response!.data);
+    }
+  }
+
+  async deleteCollectionField(collection_id: string, field_id: string) {
+    if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
+    if (!field_id) return Promise.reject(buildRequiredArgError("field_id"));
+    try {
+      const res = await this.delete<APIDeletedCollectionFieldResponse>(
+        `/collections/${collection_id}/fields/${field_id}`
+      );
+      const { status, ...data } = res.data;
+      return data as DeletedCollectionFieldResponse;
+    } catch (err) {
+      const response = (err as AxiosError<CMSError>).response!;
+      if (response.status === 404 || response.data.message.startsWith("Invalid _id")) return null;
+      return Promise.reject((err as AxiosError<CMSError>).response!.data);
+    }
+  }
 }
 const token =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjYwODI1ZDhhNmEyMzQwNjlkY2RjMWFiYyIsImlhdCI6MTYyMDE0MzQ2NywiZXhwIjoxNjUxNjc5NDY3fQ.ezSf7wahKljsf-S411fZ7K0ZnIKXccvs4ELYzMK_tq8";
@@ -510,51 +594,27 @@ export default function init(initilizer: CMSConstruct = {}) {
   return new MyCMS({ token, version });
 }
 // Tests
-const myCMS = init({ token });
+const api = init({ token });
 
-// Get Item
-// const item = myCMS.getItem<TestItem>("6085aac7cb7ffb1780d6a9a2", "60860fded05c53422cf8ce36");
-// item.then((i) => console.log(i));
-// // Get All Items in Collection
-// /* myCMS.getDatabases({fields: []}) */
-// const items = myCMS.getItemsByCollectionId<TestItem>("6085aac7cb7ffb1780d6a9a2", {
-//   fields: ["color", "business-name"],
-// });
-// items.then((items) => console.log(items)).catch((e) => console.log(e));
-// Create Item
-// interface TestItem extends Item {
-//   "business-name": string;
-//   color?: string;
-//   slug: string;
-//   featured?: boolean;
-//   /** A rating */
-//   rating: number;
-// }
-// myCMS
-//   .createItem<TestItem>("6085aac7cb7ffb1780d6a9a2", {
-//     color: "#010101",
-//     "business-name": "Adidas",
-//     slug: "adi",
-//     rating: 4,
+// api.getCollectionFields("6085aac7cb7ffb1780d6a9a2").then((f) => console.log(f));
+// api
+//   .getCollectionField("6085aac7cb7ffb1780d6a9a2", "6085aac7cb7ffb1780d6a9a8")
+//   .then((f) => console.log(f));
+// api
+//   .createCollectionField("6085aac7cb7ffb1780d6a9a2", {
+//     name: "Email Address",
+//     type: "Email",
+//     required: false,
 //   })
-//   .then((i) => console.log(i))
+//   .then((f) => console.log(f))
 //   .catch((e) => console.log(e));
-
-// myCMS
-//   .patchItemById<TestItem>("6085aac7cb7ffb1780d6a9a2", "60a513d68a46fc5d689784c9", {
-//     featured: true,
-//   })
-//   .then((i) => console.log(i))
-//   .catch((e) => console.log(e));
-
-// const item = myCMS.putItemById<TestItem>("6085aac7cb7ffb1780d6a9a2", "60a513d68a46fc5d689784c9", {
-//   "business-name": "Mike's Shoe Store",
-//   slug: "mikes-shoe-store",
-//   color: "#e30e9c",
-//   rating: 5,
-// });
-
-// item.then((i) => console.log(i)).catch((e) => console.log(e));
-
-// const res = myCMS.deleteItemById("6085aac7cb7ffb1780d6a9a2", "60a513d68a46fc5d689784c9");
-// res.then((r) => console.log(r)).catch((e) => console.log(e));
+// api
+// .updateCollectionField("6085aac7cb7ffb1780d6a9a2", "60a717c726547b6e2468d6b0", {
+//   name: "Email",
+// })
+// .then((f) => console.log(f))
+// .catch((e) => console.log(e));
+api
+  .deleteCollectionField("6085aac7cb7ffb1780d6a9a2", "60a718b026547b6e2468d6b2")
+  .then((f) => console.log(f))
+  .catch((e) => console.log(e));

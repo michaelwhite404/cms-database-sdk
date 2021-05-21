@@ -8,7 +8,7 @@ export interface CollectionField {
   /** The name of the collection field */
   name: string;
   /** The type of collection field */
-  type: string;
+  type: CollectionFieldType;
   /** Unique slug identifier for the field */
   slug: string;
   /** Shows whether the field is a required field */
@@ -124,33 +124,35 @@ export interface CollectionData {
    *        }
    *      ]
    */
-  fields: {
-    /** The type of collection field  */
-    type: CollectionFieldType;
-    /** The name of the collection field */
-    name: string;
-    /**
-     * Set to true if this field will be a required field
-     * @default false
-     */
-    required?: boolean;
-    /** Validations an item field must adhere to */
-    validations?: CollectionValidations;
-    /** Human readable text that describes the collection field */
-    helpText?: string;
-    /**
-     * Set to true if this field will be the primary name field. There can only be
-     * one primary name collection field
-     * @default false
-     */
-    primaryName?: boolean;
-    /**
-     * Set to true if this field will be the primary slug field. There can only be
-     * one primary slug collection field
-     * @default false
-     */
-    primarySlug?: boolean;
-  }[];
+  fields: CollectionDataFields[];
+}
+
+export interface CollectionDataFields {
+  /** The type of collection field  */
+  type: CollectionFieldType;
+  /** The name of the collection field */
+  name: string;
+  /**
+   * Set to true if this field will be a required field
+   * @default false
+   */
+  required?: boolean;
+  /** Validations an item field must adhere to */
+  validations?: CollectionValidations;
+  /** Human readable text that describes the collection field */
+  helpText?: string;
+  /**
+   * Set to true if this field will be the primary name field. There can only be
+   * one primary name collection field
+   * @default false
+   */
+  primaryName?: boolean;
+  /**
+   * Set to true if this field will be the primary slug field. There can only be
+   * one primary slug collection field
+   * @default false
+   */
+  primarySlug?: boolean;
 }
 
 type CollectionFieldType = typeof fieldTypes[number];
@@ -158,3 +160,7 @@ type CollectionFieldType = typeof fieldTypes[number];
 export type UpdateableCollectionProps = Pick<Collection, "name" | "slug">;
 
 export type DeletedCollectionResponse = Omit<APIDeletedCollectionResponse, "status">;
+
+export type APIDeletedCollectionFieldResponse = { status: "success"; fieldDeleted: true };
+
+export type DeletedCollectionFieldResponse = Omit<APIDeletedCollectionFieldResponse, "status">;

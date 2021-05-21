@@ -36,6 +36,8 @@ import {
   APIItemsResponse,
 } from "./interfaces/apiResponses/items";
 import Item, { DeletedItemResponse } from "./interfaces/itemInterfaces";
+import { APIUserResponse } from "./interfaces/apiResponses/user";
+import User from "./interfaces/userInterface";
 
 const DEFAULT_ENDPOINT = "http://localhost:5000/api/v1";
 
@@ -95,7 +97,7 @@ class MyCMS {
       //   .then((res) => console.log(res.data))
       //   .catch((err) => console.log(err.response.data));
 
-      return axios(config) as AxiosPromise<T>;
+      return axios(config).then(() => console.log("GOT HERE")) as AxiosPromise<T>;
     };
   }
 
@@ -614,6 +616,28 @@ class MyCMS {
       return Promise.reject((err as AxiosError<CMSError>).response!.data);
     }
   }
+
+  async getMe() {
+    const res = await this.get("/users/me");
+    return res.data.user;
+  }
+
+  async getMeToo(callback?: (err: any, data?: User) => any) {
+    try {
+      const res = await this.get<APIUserResponse>("/users/me");
+      const user = res.data.user;
+      if (callback && typeof callback === "function") {
+        callback(null, user);
+      }
+      return user;
+    } catch (err) {
+      const data = (err as AxiosError<CMSError>).response!.data;
+      if (callback && typeof callback === "function") {
+        callback(data);
+      }
+      return Promise.reject(data);
+    }
+  }
 }
 const token =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjYwODI1ZDhhNmEyMzQwNjlkY2RjMWFiYyIsImlhdCI6MTYyMDE0MzQ2NywiZXhwIjoxNjUxNjc5NDY3fQ.ezSf7wahKljsf-S411fZ7K0ZnIKXccvs4ELYzMK_tq8";
@@ -631,3 +655,11 @@ export default function init(initilizer: CMSConstruct = {}) {
 }
 // Tests
 const api = init({ token });
+
+const me = api.getMeToo((err, data) => {
+  if (err) {
+    return console.log(err);
+  }
+  console.log(data);
+});
+me.then((i) => console.log(i)).catch((err) => console.log(err));

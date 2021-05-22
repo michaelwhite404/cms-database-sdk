@@ -58,6 +58,8 @@ type RemoveIndex<T> = {
 
 type ItemData<T> = Omit<RemoveIndex<T>, keyof RemoveIndex<Item>>;
 
+type CallbackError = CMSError | null;
+
 class MyCMS {
   private endpoint: string;
   token: string;
@@ -97,7 +99,7 @@ class MyCMS {
       //   .then((res) => console.log(res.data))
       //   .catch((err) => console.log(err.response.data));
 
-      return axios(config).then(() => console.log("GOT HERE")) as AxiosPromise<T>;
+      return axios(config) as AxiosPromise<T>;
     };
   }
 
@@ -506,18 +508,24 @@ class MyCMS {
   // Fields
 
   /**
-   * Returns all fields in a collection by `collection_id`. Will return `null` if no
+   * Returns all collection fields in a collection by `collection_id`. Will return `null` if no
    * collection is found
    * @param collection_id The unique collection ID
    */
-  async getCollectionFields(collection_id: string) {
+  async getCollectionFields(
+    collection_id: string,
+    callback?: (err: CallbackError, data: CollectionField[] | null) => void
+  ) {
     if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
     try {
       const res = await this.get<APICollectionFieldsResponse>(
         `/collections/${collection_id}/fields`
       );
-      return res.data.fields;
+      const { fields } = res.data;
+      tryCallback(callback, null, fields);
+      return fields;
     } catch (err) {
+      tryCallback(callback, null, null);
       return null;
     }
   }
@@ -530,15 +538,22 @@ class MyCMS {
    * @param collection_id The unique collection ID
    * @param field_id The unique field ID
    */
-  async getCollectionField(collection_id: string, field_id: string) {
+  async getCollectionField(
+    collection_id: string,
+    field_id: string,
+    callback?: (err: CallbackError, data: CollectionField | null) => void
+  ) {
     if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
     if (!field_id) return Promise.reject(buildRequiredArgError("field_id"));
     try {
       const res = await this.get<APICollectionFieldResponse>(
         `/collections/${collection_id}/fields/${field_id}`
       );
-      return res.data.field;
+      const { field } = res.data;
+      tryCallback(callback, null, field);
+      return field;
     } catch (err) {
+      tryCallback(callback, null, null);
       return null;
     }
   }
@@ -549,7 +564,11 @@ class MyCMS {
    * @param data The fields of the Collection Field being added to the Collection
    * @returns A new Collection Field
    */
-  async createCollectionField(collection_id: string, data: CollectionDataFields) {
+  async createCollectionField(
+    collection_id: string,
+    data: CollectionDataFields,
+    callback?: (err: CallbackError, data: CollectionField) => void
+  ) {
     if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
     if (!data) return Promise.reject(buildRequiredArgError("data"));
     try {
@@ -557,9 +576,13 @@ class MyCMS {
         `/collections/${collection_id}/fields/`,
         data
       );
-      return res.data.field;
+      const { field } = res.data;
+      tryCallback(callback, null, field);
+      return field;
     } catch (err) {
-      return Promise.reject((err as AxiosError<CMSError>).response!.data);
+      const { data } = (err as AxiosError<CMSError>).response!;
+      tryCallback(callback, data, null);
+      return Promise.reject(data);
     }
   }
 
@@ -575,7 +598,8 @@ class MyCMS {
   async updateCollectionField(
     collection_id: string,
     field_id: string,
-    fields: Partial<CollectionField>
+    fields: Partial<CollectionField>,
+    callback?: (err: CallbackError, data: CollectionField | null) => void
   ) {
     if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
     if (!field_id) return Promise.reject(buildRequiredArgError("field_id"));
@@ -585,11 +609,18 @@ class MyCMS {
         `/collections/${collection_id}/fields/${field_id}`,
         fields
       );
-      return res.data.field;
+      const { field } = res.data;
+      tryCallback(callback, null, field);
+      return field;
     } catch (err) {
       const response = (err as AxiosError<CMSError>).response!;
-      if (response.status === 404 || response.data.message.startsWith("Invalid _id")) return null;
-      return Promise.reject((err as AxiosError<CMSError>).response!.data);
+      const data = response.data;
+      if (response.status === 404 || data.message.startsWith("Invalid _id")) {
+        tryCallback(callback, null, null);
+        return null;
+      }
+      tryCallback(callback, data, null);
+      return Promise.reject(data);
     }
   }
 
@@ -599,9 +630,14 @@ class MyCMS {
    * combination of the `collection_id` and the `field_id` is not found.
    * @param collection_id The unique collection ID
    * @param field_id The unique field ID
-   * @returns
+   * @returns Object with info on the delete Collection Field request. Null if no
+   * Collection Field is found
    */
-  async deleteCollectionField(collection_id: string, field_id: string) {
+  async deleteCollectionField(
+    collection_id: string,
+    field_id: string,
+    callback?: (err: CallbackError, data: DeletedCollectionFieldResponse | null) => void
+  ) {
     if (!collection_id) return Promise.reject(buildRequiredArgError("collection_id"));
     if (!field_id) return Promise.reject(buildRequiredArgError("field_id"));
     try {
@@ -609,36 +645,48 @@ class MyCMS {
         `/collections/${collection_id}/fields/${field_id}`
       );
       const { status, ...data } = res.data;
+      tryCallback(callback, null, data as DeletedCollectionFieldResponse);
       return data as DeletedCollectionFieldResponse;
     } catch (err) {
       const response = (err as AxiosError<CMSError>).response!;
-      if (response.status === 404 || response.data.message.startsWith("Invalid _id")) return null;
-      return Promise.reject((err as AxiosError<CMSError>).response!.data);
+      const data = response.data;
+      if (response.status === 404 || data.message.startsWith("Invalid _id")) {
+        tryCallback(callback, null, null);
+        return null;
+      }
+      tryCallback(callback, data, null);
+      return Promise.reject(data);
     }
   }
 
-  async getMe() {
-    const res = await this.get("/users/me");
-    return res.data.user;
-  }
+  // Users
 
-  async getMeToo(callback?: (err: any, data?: User) => any) {
+  async getMe(callback?: (err: CallbackError, data: User) => void) {
     try {
       const res = await this.get<APIUserResponse>("/users/me");
       const user = res.data.user;
-      if (callback && typeof callback === "function") {
-        callback(null, user);
-      }
+      tryCallback(callback, null, user);
       return user;
     } catch (err) {
       const data = (err as AxiosError<CMSError>).response!.data;
-      if (callback && typeof callback === "function") {
-        callback(data);
-      }
+      tryCallback(callback, data, null);
       return Promise.reject(data);
     }
   }
 }
+
+/**
+ * Runs a error-first callback function, if the callback is a function
+ * @param callback The callback function
+ * @param err The error being passed in
+ * @param data The data passed in
+ */
+const tryCallback = <DataType>(callback: any, err: CallbackError, data: DataType): void => {
+  if (callback && typeof callback === "function") {
+    callback(err, data);
+  }
+};
+
 const token =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjYwODI1ZDhhNmEyMzQwNjlkY2RjMWFiYyIsImlhdCI6MTYyMDE0MzQ2NywiZXhwIjoxNjUxNjc5NDY3fQ.ezSf7wahKljsf-S411fZ7K0ZnIKXccvs4ELYzMK_tq8";
 
@@ -656,10 +704,16 @@ export default function init(initilizer: CMSConstruct = {}) {
 // Tests
 const api = init({ token });
 
-const me = api.getMeToo((err, data) => {
-  if (err) {
-    return console.log(err);
-  }
-  console.log(data);
+// const me = api.getMe((err, data) => {
+//   if (err) {
+//     return console.log(err);
+//   }
+//   console.log(data);
+// });
+// me.then((i) => console.log(i)).catch((err) => console.log(err));
+
+api.getCollectionFields("6085aac7cb7ffb1780d6a9a2", (err, data) => {
+  if (err) return console.log(err);
+  if (!data) return console.log("No collection with this field exists");
+  return console.log(data);
 });
-me.then((i) => console.log(i)).catch((err) => console.log(err));

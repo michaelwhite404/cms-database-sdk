@@ -10,10 +10,10 @@ const api = init({ token });
 
 // api.createDatabase({ name: "YOU" }).catch((err) => console.log(err));
 
-api.createItem<Item>("60837f1c774a7f66e0", {
-  _id: "43t4r4",
-  database: 3,
-});
+// api.createItem<Item>("60837f1c774a7f66e0", {
+//   _id: "43t4r4",
+//   database: 3,
+// });
 
 interface TestItem extends Item {
   "business-name": string;
@@ -22,3 +22,14 @@ interface TestItem extends Item {
   /** A rating */
   rating: number;
 }
+
+const getTest = async () => {
+  try {
+    const me = await api.getMe();
+    console.log(me);
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+getTest();

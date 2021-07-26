@@ -1,11 +1,12 @@
+import { Query } from "mongoose";
 import init from "./index";
 import Item from "./interfaces/itemInterfaces";
 
 const token =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjYwODI1ZDhhNmEyMzQwNjlkY2RjMWFiYyIsImlhdCI6MTYyMDE0MzQ2NywiZXhwIjoxNjUxNjc5NDY3fQ.ezSf7wahKljsf-S411fZ7K0ZnIKXccvs4ELYzMK_tq8";
-
+console.log(process.env.CMSTOKEN);
 const api = init({ token });
-
+console.log(process.env.CMSTOKEN);
 // api.getDatabaseById("60837f1c774a7f66e03f4f27").then((d) => console.log(d));
 
 // api.createDatabase({ name: "YOU" }).catch((err) => console.log(err));
@@ -23,13 +24,25 @@ interface TestItem extends Item {
   rating: number;
 }
 
-const getTest = async () => {
-  try {
-    const me = await api.getMe();
-    console.log(me);
-  } catch (err) {
-    console.log(err);
-  }
-};
+// api.createCollectionField(
+//   "6085aac7cb7ffb1780d6a9a2",
+//   {
+//     required: false,
+//     name: "Email Address",
+//     type: "Email",
+//   },
+//   (err, field) => {
+//     if (err) {
+//       console.log("An Error");
+//       return console.log(err);
+//     }
+//     console.log("It worked");
+//     console.log(field);
+//   }
+// );
 
-getTest();
+// const query = new Query<TestItem>();
+// query.find({ color: 2 }).where("b").gt(2).select("color");
+// // query.getFilter();
+
+// console.log(query);

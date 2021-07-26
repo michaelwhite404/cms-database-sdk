@@ -1,5 +1,5 @@
 import axios, { AxiosError, AxiosPromise, AxiosRequestConfig, Method } from "axios";
-import { UpdateQuery } from "mongoose";
+import { Query, UpdateQuery } from "mongoose";
 
 import CMSError, { buildRequiredArgError } from "./CMSError";
 import Database, {
@@ -74,7 +74,7 @@ class MyCMS {
 
   constructor({ token, version = "1.0.0" }: CMSConstruct = {}) {
     if (!token) throw buildRequiredArgError("token");
-
+    process.env.CMSTOKEN = token;
     this.endpoint = DEFAULT_ENDPOINT;
     this.token = token;
     this.version = version;
@@ -702,7 +702,7 @@ export default function init(initilizer: CMSConstruct = {}) {
   return new MyCMS({ token, version });
 }
 // Tests
-const api = init({ token });
+// const api = init({ token });
 
 // const me = api.getMe((err, data) => {
 //   if (err) {
@@ -712,8 +712,14 @@ const api = init({ token });
 // });
 // me.then((i) => console.log(i)).catch((err) => console.log(err));
 
-api.getCollectionFields("6085aac7cb7ffb1780d6a9a2", (err, data) => {
-  if (err) return console.log(err);
-  if (!data) return console.log("No collection with this field exists");
-  return console.log(data);
-});
+// api.getCollectionFields("6085aac7cb7ffb1780d6a9a2", (err, data) => {
+//   if (err) return console.log(err);
+//   if (!data) return console.log("No collection with this field exists");
+//   return console.log(data);
+// });
+
+// const query = new Query();
+// query.find({ a: 1 }).where("b").gt(2);
+// query.getFilter();
+
+// console.log(query);

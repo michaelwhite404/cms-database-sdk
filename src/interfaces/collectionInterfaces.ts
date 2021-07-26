@@ -52,7 +52,7 @@ export interface CollectionValidations {
 
 export default interface Collection {
   /** Auto-generated ObjectId of the collection */
-  _id: string | ObjectId;
+  _id: string;
   /** The name of the collection */
   name: string;
   /** The name of the collection in singular form (e.g. "Blog Posts" -> "Blog Post") */

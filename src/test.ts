@@ -1,4 +1,4 @@
-import { Query } from "mongoose";
+import { model, Query } from "mongoose";
 import init from "./index";
 import Item from "./interfaces/itemInterfaces";
 
